@@ -17,4 +17,4 @@ pollster = "0.2.5"
 winit = "0.26.1"
 
 [patch.crates-io]
-wgpu = { path = "../../wgpu/wgpu" }
+wgpu = { path = "../wgpu/wgpu" }

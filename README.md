@@ -6,9 +6,9 @@
 </div>
 <br />
 <div align="center">
-  <img src="https://img.shields.io/badge/Min%20Rust-1.54-green.svg" alt="Minimum Rust Version">
-  <a href="https://crates.io/crates/glyphon"><img src="https://img.shields.io/crates/v/glow.svg?label=glyphon" alt="crates.io"></a>
+  <a href="https://crates.io/crates/glyphon"><img src="https://img.shields.io/crates/v/glyphon.svg?label=glyphon" alt="crates.io"></a>
   <a href="https://docs.rs/glyphon"><img src="https://docs.rs/glyphon/badge.svg" alt="docs.rs"></a>
+  <img src="https://img.shields.io/badge/min%20rust-1.60-green.svg" alt="Minimum Rust Version">
   <a href="https://github.com/grovesNL/glyphon/actions"><img src="https://github.com/grovesNL/glyphon/workflows/CI/badge.svg?branch=main" alt="Build Status" /></a>
 </div>
 

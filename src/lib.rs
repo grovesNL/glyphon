@@ -139,12 +139,7 @@ pub struct TextRenderer {
 }
 
 impl TextRenderer {
-    pub fn new(
-        device: &Device,
-        _queue: &Queue,
-        format: TextureFormat,
-        screen_resolution: Resolution,
-    ) -> Self {
+    pub fn new(device: &Device, _queue: &Queue, format: TextureFormat) -> Self {
         let glyph_cache = HashMap::new();
         let max_texture_dimension_2d = device.limits().max_texture_dimension_2d;
         let atlas_width = max_texture_dimension_2d;
@@ -244,16 +239,18 @@ impl TextRenderer {
             label: Some("glyphon bind group layout"),
         });
 
-        let params = Params { screen_resolution };
-
-        let params_raw = unsafe {
-            slice::from_raw_parts(&params as *const Params as *const u8, size_of::<Params>())
+        let params = Params {
+            screen_resolution: Resolution {
+                width: 0,
+                height: 0,
+            },
         };
 
-        let params_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let params_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("glyphon params"),
-            contents: params_raw,
+            size: size_of::<Params>() as u64,
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {

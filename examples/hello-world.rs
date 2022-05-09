@@ -51,15 +51,7 @@ async fn run() {
     };
     surface.configure(&device, &config);
 
-    let mut text_renderer = TextRenderer::new(
-        &device,
-        &queue,
-        swapchain_format,
-        Resolution {
-            width: size.width,
-            height: size.height,
-        },
-    );
+    let mut text_renderer = TextRenderer::new(&device, &queue, swapchain_format);
 
     let font = include_bytes!("./Inter-Bold.ttf") as &[u8];
     let font = Font::from_bytes(font, FontSettings::default()).unwrap();

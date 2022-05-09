@@ -1,7 +1,15 @@
+struct VertexInput {
+    @builtin(vertex_index) vertex_idx: u32,
+    @location(0) pos: vec2<u32>,
+    @location(1) dim: u32,
+    @location(2) uv: u32,
+    @location(3) color: u32,
+}
+
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) color: vec4<f32>,
-    @location(1) tex_coords: vec2<f32>,
+    @location(1) uv: vec2<f32>,
 };
 
 struct Params {
@@ -18,17 +26,15 @@ var atlas_texture: texture_2d<f32>;
 var atlas_sampler: sampler;
 
 @vertex
-fn vs_main(@builtin(vertex_index) vertex_idx: u32, @location(0) in_vert: vec4<f32>, @location(1) tex_coords: vec2<f32>, @location(2) color: u32) -> VertexOutput {
-    let width = in_vert.z;
-    let height = in_vert.w;
-
-    let v = vertex_idx % 4u;
-    var pos = in_vert.xy;
-    var uv = tex_coords;
+fn vs_main(in_vert: VertexInput) -> VertexOutput {
+    var pos = in_vert.pos;
+    let width = in_vert.dim & 0xffffu;
+    let height = (in_vert.dim & 0xffff0000u) >> 16u;
+    let color = in_vert.color;
+    var uv = vec2<u32>(in_vert.uv & 0xffffu, (in_vert.uv & 0xffff0000u) >> 16u);
+    let v = in_vert.vertex_idx % 4u;
 
     switch v {
-        case 0u: {
-        }
         case 1u: {
             pos.x += width;
             uv.x += width;
@@ -46,12 +52,15 @@ fn vs_main(@builtin(vertex_index) vertex_idx: u32, @location(0) in_vert: vec4<f3
         default: {}
     }
 
-    pos = 2.0 * pos / vec2<f32>(params.screen_resolution) - 1.0;
-    pos.y *= -1.0;
-
     var vert_output: VertexOutput;
 
-    vert_output.position = vec4<f32>(pos.xy, 0.0, 1.0);
+    vert_output.position = vec4<f32>(
+        2.0 * vec2<f32>(pos) / vec2<f32>(params.screen_resolution) - 1.0,
+        0.0,
+        1.0,
+    );
+
+    vert_output.position.y *= -1.0;
 
     vert_output.color = vec4<f32>(
         f32((color & 0xffu)),
@@ -60,12 +69,12 @@ fn vs_main(@builtin(vertex_index) vertex_idx: u32, @location(0) in_vert: vec4<f3
         f32((color & 0xff000000u) >> 24u),
     ) / 255.0;
 
-    vert_output.tex_coords = uv / vec2<f32>(textureDimensions(atlas_texture).xy);
+    vert_output.uv = vec2<f32>(uv) / vec2<f32>(textureDimensions(atlas_texture).xy);
 
     return vert_output;
 }
 
 @fragment
 fn fs_main(in_frag: VertexOutput) -> @location(0) vec4<f32> {
-    return in_frag.color * textureSample(atlas_texture, atlas_sampler, in_frag.tex_coords).x;
+    return in_frag.color * textureSample(atlas_texture, atlas_sampler, in_frag.uv).x;
 }

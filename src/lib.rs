@@ -3,7 +3,8 @@ use std::{
     collections::{HashMap, HashSet},
     error::Error,
     fmt::{self, Display, Formatter},
-    iter, mem,
+    iter,
+    mem::size_of,
     num::{NonZeroU32, NonZeroU64},
     slice,
 };
@@ -24,6 +25,8 @@ use wgpu::{
     TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureViewDescriptor,
     TextureViewDimension, VertexFormat, VertexState,
 };
+
+pub use fontdue;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrepareError {
@@ -53,8 +56,8 @@ enum GpuCache {
 }
 
 struct GlyphDetails {
-    width: u32,
-    height: u32,
+    width: u16,
+    height: u16,
     gpu_cache: GpuCache,
     atlas_id: Option<AllocId>,
 }
@@ -62,12 +65,9 @@ struct GlyphDetails {
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 struct GlyphToRender {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    atlas_x: f32,
-    atlas_y: f32,
+    pos: [u32; 2],
+    dim: [u16; 2],
+    uv: [u16; 2],
     color: [u8; 4],
 }
 
@@ -186,23 +186,28 @@ impl TextRenderer {
         });
 
         let vertex_buffers = [wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<GlyphToRender>() as wgpu::BufferAddress,
+            array_stride: size_of::<GlyphToRender>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
-                    format: VertexFormat::Float32x4,
+                    format: VertexFormat::Uint32x2,
                     offset: 0,
                     shader_location: 0,
                 },
                 wgpu::VertexAttribute {
-                    format: VertexFormat::Float32x2,
-                    offset: mem::size_of::<f32>() as u64 * 4,
+                    format: VertexFormat::Uint32,
+                    offset: size_of::<u32>() as u64 * 2,
                     shader_location: 1,
                 },
                 wgpu::VertexAttribute {
                     format: VertexFormat::Uint32,
-                    offset: mem::size_of::<f32>() as u64 * 6,
+                    offset: size_of::<u32>() as u64 * 3,
                     shader_location: 2,
+                },
+                wgpu::VertexAttribute {
+                    format: VertexFormat::Uint32,
+                    offset: size_of::<u32>() as u64 * 4,
+                    shader_location: 3,
                 },
             ],
         }];
@@ -215,7 +220,7 @@ impl TextRenderer {
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: NonZeroU64::new(mem::size_of::<Params>() as u64),
+                        min_binding_size: NonZeroU64::new(size_of::<Params>() as u64),
                     },
                     count: None,
                 },
@@ -242,10 +247,7 @@ impl TextRenderer {
         let params = Params { screen_resolution };
 
         let params_raw = unsafe {
-            slice::from_raw_parts(
-                &params as *const Params as *const u8,
-                mem::size_of::<Params>(),
-            )
+            slice::from_raw_parts(&params as *const Params as *const u8, size_of::<Params>())
         };
 
         let params_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -354,7 +356,7 @@ impl TextRenderer {
             queue.write_buffer(&self.params_buffer, 0, unsafe {
                 slice::from_raw_parts(
                     &self.params as *const Params as *const u8,
-                    mem::size_of::<Params>(),
+                    size_of::<Params>(),
                 )
             });
         }
@@ -432,8 +434,8 @@ impl TextRenderer {
                 self.glyph_cache.insert(
                     glyph.key,
                     GlyphDetails {
-                        width: metrics.width as u32,
-                        height: metrics.height as u32,
+                        width: metrics.width as u16,
+                        height: metrics.height as u16,
                         gpu_cache,
                         atlas_id,
                     },
@@ -481,12 +483,11 @@ impl TextRenderer {
 
                 glyph_vertices.extend(
                     iter::repeat(GlyphToRender {
-                        x: glyph.x,
-                        y: glyph.y,
-                        width: details.width as f32,
-                        height: details.height as f32,
-                        atlas_x: atlas_x as f32,
-                        atlas_y: atlas_y as f32,
+                        // Note: subpixel positioning is not currently handled, so we always use
+                        // the nearest pixel.
+                        pos: [glyph.x.round() as u32, glyph.y.round() as u32],
+                        dim: [details.width, details.height],
+                        uv: [atlas_x, atlas_y],
                         color: [255, 255, 0, 255],
                     })
                     .take(4),
@@ -511,7 +512,7 @@ impl TextRenderer {
         let vertices_raw = unsafe {
             slice::from_raw_parts(
                 vertices as *const _ as *const u8,
-                mem::size_of::<GlyphToRender>() * vertices.len(),
+                size_of::<GlyphToRender>() * vertices.len(),
             )
         };
 
@@ -531,7 +532,7 @@ impl TextRenderer {
         let indices_raw = unsafe {
             slice::from_raw_parts(
                 indices as *const _ as *const u8,
-                mem::size_of::<u32>() * indices.len(),
+                size_of::<u32>() * indices.len(),
             )
         };
 

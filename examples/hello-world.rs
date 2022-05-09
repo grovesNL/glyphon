@@ -1,12 +1,14 @@
-use fontdue::{
-    layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle},
-    Font, FontSettings,
+use glyphon::{
+    fontdue::{
+        layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle},
+        Font, FontSettings,
+    },
+    Resolution, TextRenderer,
 };
 use wgpu::{
     Color, CommandEncoderDescriptor, LoadOp, Operations, RenderPassColorAttachment,
     RenderPassDescriptor, TextureViewDescriptor,
 };
-use glyphon::{Resolution, TextRenderer};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},

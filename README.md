@@ -2,7 +2,7 @@
   🦅🦁 glyphon
 </h1>
 <div align="center">
-  Fast, simple 2D text rendering for wgpu
+  Fast, simple 2D text rendering for <a href="https://github.com/gfx-rs/wgpu/"><code>wgpu</code></a>
 </div>
 <br />
 <div align="center">

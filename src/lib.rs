@@ -28,6 +28,10 @@ use wgpu::{
 
 pub use fontdue;
 
+pub trait Color: Copy {
+    fn color(&self) -> [u8; 4];
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrepareError {
     AtlasFull,
@@ -86,7 +90,7 @@ pub struct Params {
 
 fn try_allocate(
     atlas_packer: &mut BucketedAtlasAllocator,
-    layout: &Layout,
+    layout: &Layout<impl Color>,
     glyph_cache: &mut HashMap<GlyphRasterConfig, GlyphDetails>,
     width: usize,
     height: usize,
@@ -346,7 +350,7 @@ impl TextRenderer {
         queue: &Queue,
         screen_resolution: Resolution,
         fonts: &[Font],
-        layouts: &[&Layout],
+        layouts: &[&Layout<impl Color>],
     ) -> Result<(), PrepareError> {
         if screen_resolution != self.params.screen_resolution {
             self.params.screen_resolution = screen_resolution;
@@ -485,7 +489,7 @@ impl TextRenderer {
                         pos: [glyph.x.round() as u32, glyph.y.round() as u32],
                         dim: [details.width, details.height],
                         uv: [atlas_x, atlas_y],
-                        color: [255, 255, 0, 255],
+                        color: glyph.user_data.color(),
                     })
                     .take(4),
                 );

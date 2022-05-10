@@ -3,11 +3,12 @@ use glyphon::{
         layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle},
         Font, FontSettings,
     },
-    Resolution, TextRenderer,
+    Color, Resolution, TextRenderer,
 };
 use wgpu::{
-    Color, CommandEncoderDescriptor, LoadOp, Operations, RenderPassColorAttachment,
-    RenderPassDescriptor, TextureViewDescriptor,
+    Backends, CommandEncoderDescriptor, DeviceDescriptor, Features, Instance, Limits, LoadOp,
+    Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor,
+    RequestAdapterOptions, SurfaceConfiguration, TextureUsages, TextureViewDescriptor,
 };
 use winit::{
     event::{Event, WindowEvent},
@@ -19,18 +20,27 @@ fn main() {
     pollster::block_on(run());
 }
 
+#[derive(Clone, Copy)]
+struct UserData;
+
+impl Color for UserData {
+    fn color(&self) -> [u8; 4] {
+        [255, 255, 0, 255]
+    }
+}
+
 async fn run() {
-    let instance = wgpu::Instance::new(wgpu::Backends::all());
+    let instance = Instance::new(Backends::all());
     let adapter = instance
-        .request_adapter(&wgpu::RequestAdapterOptions::default())
+        .request_adapter(&RequestAdapterOptions::default())
         .await
         .unwrap();
     let (device, queue) = adapter
         .request_device(
-            &wgpu::DeviceDescriptor {
+            &DeviceDescriptor {
                 label: None,
-                features: wgpu::Features::empty(),
-                limits: wgpu::Limits::downlevel_defaults(),
+                features: Features::empty(),
+                limits: Limits::downlevel_defaults(),
             },
             None,
         )
@@ -42,12 +52,12 @@ async fn run() {
     let surface = unsafe { instance.create_surface(&window) };
     let size = window.inner_size();
     let swapchain_format = surface.get_preferred_format(&adapter).unwrap();
-    let mut config = wgpu::SurfaceConfiguration {
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+    let mut config = SurfaceConfiguration {
+        usage: TextureUsages::RENDER_ATTACHMENT,
         format: swapchain_format,
         width: size.width,
         height: size.height,
-        present_mode: wgpu::PresentMode::Mailbox,
+        present_mode: PresentMode::Mailbox,
     };
     surface.configure(&device, &config);
 
@@ -81,7 +91,12 @@ async fn run() {
 
                 layout.append(
                     fonts.as_slice(),
-                    &TextStyle::new("Hello world!\nI'm on a new line!", 50.0, 0),
+                    &TextStyle::with_user_data(
+                        "Hello world!\nI'm on a new line!",
+                        50.0,
+                        0,
+                        UserData {},
+                    ),
                 );
 
                 text_renderer
@@ -108,7 +123,7 @@ async fn run() {
                             view: &view,
                             resolve_target: None,
                             ops: Operations {
-                                load: LoadOp::Clear(Color::BLACK),
+                                load: LoadOp::Clear(wgpu::Color::BLACK),
                                 store: true,
                             },
                         }],

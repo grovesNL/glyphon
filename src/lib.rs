@@ -15,7 +15,6 @@ use fontdue::{
     Font,
 };
 use wgpu::{
-    util::{BufferInitDescriptor, DeviceExt},
     BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
     Buffer, BufferBindingType, BufferDescriptor, BufferUsages, ColorTargetState, ColorWrites,
     Device, Extent3d, FilterMode, FragmentState, ImageCopyTexture, ImageDataLayout, IndexFormat,
@@ -23,7 +22,7 @@ use wgpu::{
     RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor,
     ShaderModuleDescriptor, ShaderSource, ShaderStages, Texture, TextureAspect, TextureDescriptor,
     TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureViewDescriptor,
-    TextureViewDimension, VertexFormat, VertexState,
+    TextureViewDimension, VertexFormat, VertexState, COPY_BUFFER_ALIGNMENT,
 };
 
 pub use fontdue;
@@ -317,7 +316,7 @@ impl TextRenderer {
             multiview: None,
         });
 
-        let vertex_buffer_size = 4096;
+        let vertex_buffer_size = next_copy_buffer_size(4096);
         let vertex_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("glyphon vertices"),
             size: vertex_buffer_size,
@@ -325,7 +324,7 @@ impl TextRenderer {
             mapped_at_creation: false,
         });
 
-        let index_buffer_size = 4096;
+        let index_buffer_size = next_copy_buffer_size(4096);
         let index_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("glyphon indices"),
             size: index_buffer_size,
@@ -358,7 +357,7 @@ impl TextRenderer {
         queue: &Queue,
         screen_resolution: Resolution,
         fonts: &[Font],
-        layouts: &[&Layout<impl HasColor>],
+        layouts: &[Layout<impl HasColor>],
     ) -> Result<(), PrepareError> {
         if screen_resolution != self.params.screen_resolution {
             self.params.screen_resolution = screen_resolution;
@@ -531,12 +530,16 @@ impl TextRenderer {
             queue.write_buffer(&self.vertex_buffer, 0, vertices_raw);
         } else {
             self.vertex_buffer.destroy();
-            self.vertex_buffer_size = vertices_raw.len().next_power_of_two() as u64;
-            self.vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("glyphon vertices"),
-                contents: vertices_raw,
-                usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-            });
+
+            let (buffer, buffer_size) = create_oversized_buffer(
+                device,
+                Some("glyphon vertices"),
+                vertices_raw,
+                BufferUsages::VERTEX | BufferUsages::COPY_DST,
+            );
+
+            self.vertex_buffer = buffer;
+            self.vertex_buffer_size = buffer_size;
         }
 
         let indices = glyph_indices.as_slice();
@@ -551,12 +554,16 @@ impl TextRenderer {
             queue.write_buffer(&self.index_buffer, 0, indices_raw);
         } else {
             self.index_buffer.destroy();
-            self.index_buffer_size = indices_raw.len().next_power_of_two() as u64;
-            self.index_buffer = device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("glyphon indices"),
-                contents: indices_raw,
-                usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
-            });
+
+            let (buffer, buffer_size) = create_oversized_buffer(
+                device,
+                Some("glyphon indices"),
+                indices_raw,
+                BufferUsages::INDEX | BufferUsages::COPY_DST,
+            );
+
+            self.index_buffer = buffer;
+            self.index_buffer_size = buffer_size;
         }
 
         Ok(())
@@ -575,4 +582,29 @@ impl TextRenderer {
 
         Ok(())
     }
+}
+
+fn next_copy_buffer_size(size: u64) -> u64 {
+    let next_power_of_2 = size.next_power_of_two() as u64;
+    let align_mask = COPY_BUFFER_ALIGNMENT - 1;
+    let padded_size = ((next_power_of_2 + align_mask) & !align_mask).max(COPY_BUFFER_ALIGNMENT);
+    padded_size
+}
+
+fn create_oversized_buffer(
+    device: &Device,
+    label: Option<&str>,
+    contents: &[u8],
+    usage: BufferUsages,
+) -> (Buffer, u64) {
+    let size = next_copy_buffer_size(contents.len() as u64);
+    let buffer = device.create_buffer(&BufferDescriptor {
+        label,
+        size,
+        usage,
+        mapped_at_creation: true,
+    });
+    buffer.slice(..).get_mapped_range_mut()[..contents.len()].copy_from_slice(contents);
+    buffer.unmap();
+    (buffer, size)
 }

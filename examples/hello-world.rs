@@ -71,7 +71,6 @@ async fn run() {
     let font = include_bytes!("./Inter-Bold.ttf") as &[u8];
     let font = Font::from_bytes(font, FontSettings::default()).unwrap();
     let fonts = vec![font];
-    let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
 
     event_loop.run(move |event, _, control_flow| {
         let _ = (&instance, &adapter);
@@ -88,6 +87,8 @@ async fn run() {
                 window.request_redraw();
             }
             Event::RedrawRequested(_) => {
+                let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+
                 layout.reset(&LayoutSettings {
                     x: 0.0,
                     y: 0.0,
@@ -113,7 +114,7 @@ async fn run() {
                             height: config.height,
                         },
                         &fonts,
-                        &[&layout],
+                        &[layout],
                     )
                     .unwrap();
 

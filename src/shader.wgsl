@@ -1,31 +1,31 @@
 struct VertexInput {
-    @builtin(vertex_index) vertex_idx: u32,
-    @location(0) pos: vec2<u32>,
-    @location(1) dim: u32,
-    @location(2) uv: u32,
-    @location(3) color: u32,
-}
+    [[builtin(vertex_index)]] vertex_idx: u32;
+    [[location(0)]] pos: vec2<u32>;
+    [[location(1)]] dim: u32;
+    [[location(2)]] uv: u32;
+    [[location(3)]] color: u32;
+};
 
 struct VertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) color: vec4<f32>,
-    @location(1) uv: vec2<f32>,
+    [[builtin(position)]] position: vec4<f32>;
+    [[location(0)]] color: vec4<f32>;
+    [[location(1)]] uv: vec2<f32>;
 };
 
 struct Params {
-    screen_resolution: vec2<u32>,
+    screen_resolution: vec2<u32>;
 };
 
-@group(0) @binding(0)
+[[group(0), binding(0)]]
 var<uniform> params: Params;
 
-@group(0) @binding(1)
+[[group(0), binding(1)]]
 var atlas_texture: texture_2d<f32>;
 
-@group(0) @binding(2)
+[[group(0), binding(2)]]
 var atlas_sampler: sampler;
 
-@vertex
+[[stage(vertex)]]
 fn vs_main(in_vert: VertexInput) -> VertexOutput {
     var pos = in_vert.pos;
     let width = in_vert.dim & 0xffffu;
@@ -34,20 +34,20 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
     var uv = vec2<u32>(in_vert.uv & 0xffffu, (in_vert.uv & 0xffff0000u) >> 16u);
     let v = in_vert.vertex_idx % 4u;
 
-    switch v {
+    switch (v) {
         case 1u: {
-            pos.x += width;
-            uv.x += width;
+            pos.x = pos.x + width;
+            uv.x = uv.x + width;
         }
         case 2u: {
-            pos.x += width;
-            pos.y += height;
-            uv.x += width;
-            uv.y += height;
+            pos.x = pos.x + width;
+            pos.y = pos.y + height;
+            uv.x = uv.x + width;
+            uv.y = uv.y + height;
         }
         case 3u: {
-            pos.y += height;
-            uv.y += height;
+            pos.y = pos.y + height;
+            uv.y = uv.y + height;
         }
         default: {}
     }
@@ -60,7 +60,7 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
         1.0,
     );
 
-    vert_output.position.y *= -1.0;
+    vert_output.position.y = -vert_output.position.y;
 
     vert_output.color = vec4<f32>(
         f32((color & 0xffu)),
@@ -74,7 +74,7 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
     return vert_output;
 }
 
-@fragment
-fn fs_main(in_frag: VertexOutput) -> @location(0) vec4<f32> {
+[[stage(fragment)]]
+fn fs_main(in_frag: VertexOutput) -> [[location(0)]] vec4<f32> {
     return in_frag.color * textureSample(atlas_texture, atlas_sampler, in_frag.uv).x;
 }

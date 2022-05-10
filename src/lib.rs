@@ -28,8 +28,16 @@ use wgpu::{
 
 pub use fontdue;
 
-pub trait Color: Copy {
-    fn color(&self) -> [u8; 4];
+#[repr(C)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
+
+pub trait HasColor: Copy {
+    fn color(&self) -> Color;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -90,7 +98,7 @@ pub struct Params {
 
 fn try_allocate(
     atlas_packer: &mut BucketedAtlasAllocator,
-    layout: &Layout<impl Color>,
+    layout: &Layout<impl HasColor>,
     glyph_cache: &mut HashMap<GlyphRasterConfig, GlyphDetails>,
     width: usize,
     height: usize,
@@ -350,7 +358,7 @@ impl TextRenderer {
         queue: &Queue,
         screen_resolution: Resolution,
         fonts: &[Font],
-        layouts: &[&Layout<impl Color>],
+        layouts: &[&Layout<impl HasColor>],
     ) -> Result<(), PrepareError> {
         if screen_resolution != self.params.screen_resolution {
             self.params.screen_resolution = screen_resolution;
@@ -482,6 +490,8 @@ impl TextRenderer {
                     GpuCache::SkipRasterization => continue,
                 };
 
+                let color = glyph.user_data.color();
+
                 glyph_vertices.extend(
                     iter::repeat(GlyphToRender {
                         // Note: subpixel positioning is not currently handled, so we always use
@@ -489,7 +499,7 @@ impl TextRenderer {
                         pos: [glyph.x.round() as u32, glyph.y.round() as u32],
                         dim: [details.width, details.height],
                         uv: [atlas_x, atlas_y],
-                        color: glyph.user_data.color(),
+                        color: [color.r, color.g, color.b, color.a],
                     })
                     .take(4),
                 );

@@ -3,7 +3,7 @@ use glyphon::{
         layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle},
         Font, FontSettings,
     },
-    Color, Resolution, TextRenderer,
+    Color, HasColor, Resolution, TextRenderer,
 };
 use wgpu::{
     Backends, CommandEncoderDescriptor, DeviceDescriptor, Features, Instance, Limits, LoadOp,
@@ -21,11 +21,16 @@ fn main() {
 }
 
 #[derive(Clone, Copy)]
-struct UserData;
+struct GlyphUserData;
 
-impl Color for UserData {
-    fn color(&self) -> [u8; 4] {
-        [255, 255, 0, 255]
+impl HasColor for GlyphUserData {
+    fn color(&self) -> Color {
+        Color {
+            r: 255,
+            g: 255,
+            b: 0,
+            a: 255,
+        }
     }
 }
 
@@ -95,7 +100,7 @@ async fn run() {
                         "Hello world!\nI'm on a new line!",
                         50.0,
                         0,
-                        UserData {},
+                        GlyphUserData,
                     ),
                 );
 

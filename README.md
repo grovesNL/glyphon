@@ -21,7 +21,7 @@ This crate provides a simple way to render 2D text with [`wgpu`](https://github.
 - calculate layout for text (with [`fontdue`](https://github.com/mooman219/fontdue/))
 - sampling from the texture atlas to render text (with [`wgpu`](https://github.com/gfx-rs/wgpu/))
 
-To avoid extra render passes, rendering uses existing render passes(following the middleware pattern described in [`wgpu`'s Encapsulating Graphics Work wiki page](https://github.com/gfx-rs/wgpu/wiki/Encapsulating-Graphics-Work).
+To avoid extra render passes, rendering uses existing render passes (following the middleware pattern described in [`wgpu`'s Encapsulating Graphics Work wiki page](https://github.com/gfx-rs/wgpu/wiki/Encapsulating-Graphics-Work).
 
 ## License
 

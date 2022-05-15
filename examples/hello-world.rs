@@ -3,7 +3,7 @@ use glyphon::{
         layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle},
         Font, FontSettings,
     },
-    Color, HasColor, Resolution, TextRenderer,
+    Color, HasColor, Resolution, TextAtlas, TextRenderer,
 };
 use wgpu::{
     Backends, CommandEncoderDescriptor, DeviceDescriptor, Features, Instance, Limits, LoadOp,
@@ -66,7 +66,8 @@ async fn run() {
     };
     surface.configure(&device, &config);
 
-    let mut text_renderer = TextRenderer::new(&device, &queue, swapchain_format);
+    let atlas = TextAtlas::new(&device, &queue, swapchain_format);
+    let mut text_renderer = TextRenderer::new(&device, &queue, &atlas);
 
     let font = include_bytes!("./Inter-Bold.ttf") as &[u8];
     let font = Font::from_bytes(font, FontSettings::default()).unwrap();

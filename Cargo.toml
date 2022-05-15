@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0 OR Zlib"
 wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "8e62ca0" }
 fontdue = "0.7.2"
 etagere = "0.2.6"
-pollster = "0.2.5"
 
 [dev-dependencies]
 winit = "0.26.1"
+pollster = "0.2.5"

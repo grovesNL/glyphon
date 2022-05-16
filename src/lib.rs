@@ -58,7 +58,8 @@ impl Error for PrepareError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RenderError {
-    AtlasFull,
+    RemovedFromAtlas,
+    ScreenResolutionChanged,
 }
 
 impl Display for RenderError {
@@ -328,6 +329,7 @@ pub struct TextRenderer {
     vertices_to_render: u32,
     atlas: TextAtlas,
     glyphs_in_use: HashSet<GlyphRasterConfig>,
+    screen_resolution: Resolution,
 }
 
 impl TextRenderer {
@@ -356,6 +358,10 @@ impl TextRenderer {
             vertices_to_render: 0,
             atlas: atlas.clone(),
             glyphs_in_use: HashSet::new(),
+            screen_resolution: Resolution {
+                width: 0,
+                height: 0,
+            },
         }
     }
 
@@ -367,12 +373,14 @@ impl TextRenderer {
         fonts: &[Font],
         layouts: &[Layout<impl HasColor>],
     ) -> Result<(), PrepareError> {
-        let current_resolution = {
+        self.screen_resolution = screen_resolution;
+
+        let atlas_current_resolution = {
             let atlas = self.atlas.inner.read().expect("atlas locked");
             atlas.params.screen_resolution
         };
 
-        if screen_resolution != current_resolution {
+        if screen_resolution != atlas_current_resolution {
             let mut atlas = self.atlas.inner.write().expect("atlas locked");
             atlas.params.screen_resolution = screen_resolution;
             queue.write_buffer(&atlas.params_buffer, 0, unsafe {
@@ -599,11 +607,19 @@ impl TextRenderer {
             return Ok(());
         }
 
-        // Validate that glyphs haven't been evicted from cache since `prepare`
-        let atlas = self.atlas.inner.read().expect("atlas locked");
-        for glyph in self.glyphs_in_use.iter() {
-            if !atlas.glyph_cache.contains_key(glyph) {
-                return Err(RenderError::AtlasFull);
+        {
+            let atlas = self.atlas.inner.read().expect("atlas locked");
+
+            // Validate that glyphs haven't been evicted from cache since `prepare`
+            for glyph in self.glyphs_in_use.iter() {
+                if !atlas.glyph_cache.contains_key(glyph) {
+                    return Err(RenderError::RemovedFromAtlas);
+                }
+            }
+
+            // Validate that screen resolution hasn't changed since `prepare`
+            if self.screen_resolution != atlas.params.screen_resolution {
+                return Err(RenderError::ScreenResolutionChanged);
             }
         }
 

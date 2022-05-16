@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     error::Error,
     fmt::{self, Display, Formatter},
     iter,
@@ -15,6 +15,7 @@ use fontdue::{
     layout::{GlyphRasterConfig, Layout},
     Font,
 };
+use recently_used::RecentlyUsedMap;
 use wgpu::{
     BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
     Buffer, BufferBindingType, BufferDescriptor, BufferUsages, ColorTargetState, ColorWrites,
@@ -27,6 +28,8 @@ use wgpu::{
 };
 
 pub use fontdue;
+
+mod recently_used;
 
 #[repr(C)]
 pub struct Color {
@@ -54,7 +57,9 @@ impl Display for PrepareError {
 impl Error for PrepareError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RenderError {}
+pub enum RenderError {
+    AtlasFull,
+}
 
 impl Display for RenderError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -96,40 +101,22 @@ pub struct Params {
     screen_resolution: Resolution,
 }
 
-fn try_allocate(
-    atlas: &mut InnerAtlas,
-    layout: &Layout<impl HasColor>,
-    width: usize,
-    height: usize,
-) -> Option<Allocation> {
+fn try_allocate(atlas: &mut InnerAtlas, width: usize, height: usize) -> Option<Allocation> {
     let size = size2(width as i32, height as i32);
-    let allocation = atlas.packer.allocate(size);
 
-    if allocation.is_some() {
-        return allocation;
-    }
-
-    // Try to free any allocations not used in the current layout
-    // TODO: use LRU instead
-    let used_glyphs = layout
-        .glyphs()
-        .iter()
-        .map(|gp| gp.key)
-        .collect::<HashSet<_>>();
-
-    atlas.glyph_cache.retain(|key, details| {
-        if used_glyphs.contains(&key) {
-            true
-        } else {
-            if let Some(atlas_id) = details.atlas_id {
-                atlas.packer.deallocate(atlas_id)
-            }
-            false
+    loop {
+        let allocation = atlas.packer.allocate(size);
+        if allocation.is_some() {
+            return allocation;
         }
-    });
 
-    // Attempt to reallocate
-    atlas.packer.allocate(size)
+        // Try to free least recently used allocation
+        let (key, value) = atlas.glyph_cache.entries_least_recently_used().next()?;
+        atlas
+            .packer
+            .deallocate(value.atlas_id.expect("cache corrupt"));
+        atlas.glyph_cache.remove(&key);
+    }
 }
 
 struct InnerAtlas {
@@ -138,7 +125,7 @@ struct InnerAtlas {
     packer: BucketedAtlasAllocator,
     width: u32,
     height: u32,
-    glyph_cache: HashMap<GlyphRasterConfig, GlyphDetails>,
+    glyph_cache: RecentlyUsedMap<GlyphRasterConfig, GlyphDetails>,
     params: Params,
     params_buffer: Buffer,
 }
@@ -183,7 +170,7 @@ impl TextAtlas {
             ..Default::default()
         });
 
-        let glyph_cache = HashMap::new();
+        let glyph_cache = RecentlyUsedMap::new();
 
         // Create a render pipeline to use for rendering later
         let shader = device.create_shader_module(&ShaderModuleDescriptor {
@@ -340,6 +327,7 @@ pub struct TextRenderer {
     index_buffer_size: u64,
     vertices_to_render: u32,
     atlas: TextAtlas,
+    glyphs_in_use: HashSet<GlyphRasterConfig>,
 }
 
 impl TextRenderer {
@@ -367,6 +355,7 @@ impl TextRenderer {
             index_buffer_size,
             vertices_to_render: 0,
             atlas: atlas.clone(),
+            glyphs_in_use: HashSet::new(),
         }
     }
 
@@ -402,8 +391,12 @@ impl TextRenderer {
         }
         let mut upload_bounds = None::<UploadBounds>;
 
+        self.glyphs_in_use.clear();
+
         for layout in layouts.iter() {
             for glyph in layout.glyphs() {
+                self.glyphs_in_use.insert(glyph.key);
+
                 let already_on_gpu = self
                     .atlas
                     .inner
@@ -411,6 +404,7 @@ impl TextRenderer {
                     .expect("atlas locked")
                     .glyph_cache
                     .contains_key(&glyph.key);
+
                 if already_on_gpu {
                     continue;
                 }
@@ -422,11 +416,10 @@ impl TextRenderer {
 
                 let (gpu_cache, atlas_id) = if glyph.char_data.rasterize() {
                     // Find a position in the packer
-                    let allocation =
-                        match try_allocate(&mut atlas, layout, metrics.width, metrics.height) {
-                            Some(a) => a,
-                            None => return Err(PrepareError::AtlasFull),
-                        };
+                    let allocation = match try_allocate(&mut atlas, metrics.width, metrics.height) {
+                        Some(a) => a,
+                        None => return Err(PrepareError::AtlasFull),
+                    };
                     let atlas_min = allocation.rectangle.min;
                     let atlas_max = allocation.rectangle.max;
 
@@ -467,15 +460,17 @@ impl TextRenderer {
                     (GpuCache::SkipRasterization, None)
                 };
 
-                atlas.glyph_cache.insert(
-                    glyph.key,
-                    GlyphDetails {
-                        width: metrics.width as u16,
-                        height: metrics.height as u16,
-                        gpu_cache,
-                        atlas_id,
-                    },
-                );
+                if !atlas.glyph_cache.contains_key(&glyph.key) {
+                    atlas.glyph_cache.insert(
+                        glyph.key,
+                        GlyphDetails {
+                            width: metrics.width as u16,
+                            height: metrics.height as u16,
+                            gpu_cache,
+                            atlas_id,
+                        },
+                    );
+                }
             }
         }
 
@@ -599,9 +594,17 @@ impl TextRenderer {
         Ok(())
     }
 
-    pub fn render<'pass>(&'pass mut self, pass: &mut RenderPass<'pass>) -> Result<(), ()> {
+    pub fn render<'pass>(&'pass mut self, pass: &mut RenderPass<'pass>) -> Result<(), RenderError> {
         if self.vertices_to_render == 0 {
             return Ok(());
+        }
+
+        // Validate that glyphs haven't been evicted from cache since `prepare`
+        let atlas = self.atlas.inner.read().expect("atlas locked");
+        for glyph in self.glyphs_in_use.iter() {
+            if !atlas.glyph_cache.contains_key(glyph) {
+                return Err(RenderError::AtlasFull);
+            }
         }
 
         pass.set_pipeline(&self.atlas.pipeline);

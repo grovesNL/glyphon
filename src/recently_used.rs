@@ -1,7 +1,6 @@
 use std::{
     borrow::Borrow,
     collections::{hash_map::Entry, HashMap},
-    fmt,
     hash::Hash,
 };
 
@@ -10,7 +9,6 @@ struct RecentlyUsedItem<V> {
     value: V,
 }
 
-#[derive(Debug)]
 enum Node<V> {
     Value {
         value: V,
@@ -30,7 +28,7 @@ pub struct RecentlyUsedMap<K: Clone + Copy + Eq + Hash, V> {
     free: Option<usize>,
 }
 
-impl<K: Clone + Copy + Eq + Hash + fmt::Debug, V> RecentlyUsedMap<K, V> {
+impl<K: Clone + Copy + Eq + Hash, V> RecentlyUsedMap<K, V> {
     pub fn new() -> Self {
         Self::with_capacity(0)
     }

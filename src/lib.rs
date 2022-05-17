@@ -112,7 +112,7 @@ fn try_allocate(atlas: &mut InnerAtlas, width: usize, height: usize) -> Option<A
         }
 
         // Try to free least recently used allocation
-        let (key, value) = atlas.glyph_cache.entries_least_recently_used().next()?;
+        let (key, value) = atlas.glyph_cache.pop()?;
         atlas
             .packer
             .deallocate(value.atlas_id.expect("cache corrupt"));

@@ -7,7 +7,7 @@ use std::{
     mem::size_of,
     num::{NonZeroU32, NonZeroU64},
     slice,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 
 use etagere::{size2, AllocId, Allocation, BucketedAtlasAllocator};
@@ -102,7 +102,7 @@ pub struct Params {
     screen_resolution: Resolution,
 }
 
-fn try_allocate(atlas: &mut InnerAtlas, width: usize, height: usize) -> Option<Allocation> {
+fn try_allocate(atlas: &mut TextAtlas, width: usize, height: usize) -> Option<Allocation> {
     let size = size2(width as i32, height as i32);
 
     loop {
@@ -120,7 +120,7 @@ fn try_allocate(atlas: &mut InnerAtlas, width: usize, height: usize) -> Option<A
     }
 }
 
-struct InnerAtlas {
+pub struct TextAtlas {
     texture_pending: Vec<u8>,
     texture: Texture,
     packer: BucketedAtlasAllocator,
@@ -129,11 +129,6 @@ struct InnerAtlas {
     glyph_cache: RecentlyUsedMap<GlyphRasterConfig, GlyphDetails>,
     params: Params,
     params_buffer: Buffer,
-}
-
-#[derive(Clone)]
-pub struct TextAtlas {
-    inner: Arc<RwLock<InnerAtlas>>,
     pipeline: Arc<RenderPipeline>,
     bind_group: Arc<BindGroup>,
 }
@@ -305,16 +300,14 @@ impl TextAtlas {
         }));
 
         Self {
-            inner: Arc::new(RwLock::new(InnerAtlas {
-                texture_pending,
-                texture,
-                packer,
-                width,
-                height,
-                glyph_cache,
-                params,
-                params_buffer,
-            })),
+            texture_pending,
+            texture,
+            packer,
+            width,
+            height,
+            glyph_cache,
+            params,
+            params_buffer,
             pipeline,
             bind_group,
         }
@@ -327,13 +320,12 @@ pub struct TextRenderer {
     index_buffer: Buffer,
     index_buffer_size: u64,
     vertices_to_render: u32,
-    atlas: TextAtlas,
     glyphs_in_use: HashSet<GlyphRasterConfig>,
     screen_resolution: Resolution,
 }
 
 impl TextRenderer {
-    pub fn new(device: &Device, _queue: &Queue, atlas: &TextAtlas) -> Self {
+    pub fn new(device: &Device, _queue: &Queue) -> Self {
         let vertex_buffer_size = next_copy_buffer_size(4096);
         let vertex_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("glyphon vertices"),
@@ -356,7 +348,6 @@ impl TextRenderer {
             index_buffer,
             index_buffer_size,
             vertices_to_render: 0,
-            atlas: atlas.clone(),
             glyphs_in_use: HashSet::new(),
             screen_resolution: Resolution {
                 width: 0,
@@ -369,19 +360,16 @@ impl TextRenderer {
         &mut self,
         device: &Device,
         queue: &Queue,
+        atlas: &mut TextAtlas,
         screen_resolution: Resolution,
         fonts: &[Font],
         layouts: &[Layout<impl HasColor>],
     ) -> Result<(), PrepareError> {
         self.screen_resolution = screen_resolution;
 
-        let atlas_current_resolution = {
-            let atlas = self.atlas.inner.read().expect("atlas locked");
-            atlas.params.screen_resolution
-        };
+        let atlas_current_resolution = { atlas.params.screen_resolution };
 
         if screen_resolution != atlas_current_resolution {
-            let mut atlas = self.atlas.inner.write().expect("atlas locked");
             atlas.params.screen_resolution = screen_resolution;
             queue.write_buffer(&atlas.params_buffer, 0, unsafe {
                 slice::from_raw_parts(
@@ -405,13 +393,7 @@ impl TextRenderer {
             for glyph in layout.glyphs() {
                 self.glyphs_in_use.insert(glyph.key);
 
-                let already_on_gpu = self
-                    .atlas
-                    .inner
-                    .read()
-                    .expect("atlas locked")
-                    .glyph_cache
-                    .contains_key(&glyph.key);
+                let already_on_gpu = atlas.glyph_cache.contains_key(&glyph.key);
 
                 if already_on_gpu {
                     continue;
@@ -420,11 +402,9 @@ impl TextRenderer {
                 let font = &fonts[glyph.font_index];
                 let (metrics, bitmap) = font.rasterize_config(glyph.key);
 
-                let mut atlas = self.atlas.inner.write().expect("atlas locked");
-
                 let (gpu_cache, atlas_id) = if glyph.char_data.rasterize() {
                     // Find a position in the packer
-                    let allocation = match try_allocate(&mut atlas, metrics.width, metrics.height) {
+                    let allocation = match try_allocate(atlas, metrics.width, metrics.height) {
                         Some(a) => a,
                         None => return Err(PrepareError::AtlasFull),
                     };
@@ -483,7 +463,6 @@ impl TextRenderer {
         }
 
         if let Some(ub) = upload_bounds {
-            let atlas = self.atlas.inner.read().expect("atlas locked");
             queue.write_texture(
                 ImageCopyTexture {
                     texture: &atlas.texture,
@@ -515,7 +494,6 @@ impl TextRenderer {
 
         for layout in layouts.iter() {
             for glyph in layout.glyphs() {
-                let atlas = self.atlas.inner.read().expect("atlas locked");
                 let details = atlas.glyph_cache.get(&glyph.key).unwrap();
                 let (atlas_x, atlas_y) = match details.gpu_cache {
                     GpuCache::InAtlas { x, y } => (x, y),
@@ -602,14 +580,16 @@ impl TextRenderer {
         Ok(())
     }
 
-    pub fn render<'pass>(&'pass mut self, pass: &mut RenderPass<'pass>) -> Result<(), RenderError> {
+    pub fn render<'pass>(
+        &'pass mut self,
+        atlas: &'pass TextAtlas,
+        pass: &mut RenderPass<'pass>,
+    ) -> Result<(), RenderError> {
         if self.vertices_to_render == 0 {
             return Ok(());
         }
 
         {
-            let atlas = self.atlas.inner.read().expect("atlas locked");
-
             // Validate that glyphs haven't been evicted from cache since `prepare`
             for glyph in self.glyphs_in_use.iter() {
                 if !atlas.glyph_cache.contains_key(glyph) {
@@ -623,8 +603,8 @@ impl TextRenderer {
             }
         }
 
-        pass.set_pipeline(&self.atlas.pipeline);
-        pass.set_bind_group(0, &self.atlas.bind_group, &[]);
+        pass.set_pipeline(&atlas.pipeline);
+        pass.set_bind_group(0, &atlas.bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint32);
         pass.draw_indexed(0..self.vertices_to_render, 0, 0..1);

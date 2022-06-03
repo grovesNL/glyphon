@@ -66,8 +66,8 @@ async fn run() {
     };
     surface.configure(&device, &config);
 
-    let atlas = TextAtlas::new(&device, &queue, swapchain_format);
-    let mut text_renderer = TextRenderer::new(&device, &queue, &atlas);
+    let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
+    let mut text_renderer = TextRenderer::new(&device, &queue);
 
     let font = include_bytes!("./Inter-Bold.ttf") as &[u8];
     let font = Font::from_bytes(font, FontSettings::default()).unwrap();
@@ -110,6 +110,7 @@ async fn run() {
                     .prepare(
                         &device,
                         &queue,
+                        &mut atlas,
                         Resolution {
                             width: config.width,
                             height: config.height,
@@ -137,7 +138,7 @@ async fn run() {
                         depth_stencil_attachment: None,
                     });
 
-                    text_renderer.render(&mut pass).unwrap();
+                    text_renderer.render(&atlas, &mut pass).unwrap();
                 }
 
                 queue.submit(Some(encoder.finish()));

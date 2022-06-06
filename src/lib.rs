@@ -100,6 +100,7 @@ pub struct Resolution {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Params {
     screen_resolution: Resolution,
+    _pad: [u32; 2],
 }
 
 fn try_allocate(atlas: &mut TextAtlas, width: usize, height: usize) -> Option<Allocation> {
@@ -238,6 +239,7 @@ impl TextAtlas {
                 width: 0,
                 height: 0,
             },
+            _pad: [0, 0],
         };
 
         let params_buffer = device.create_buffer(&BufferDescriptor {

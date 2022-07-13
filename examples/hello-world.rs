@@ -56,7 +56,7 @@ async fn run() {
     let window = Window::new(&event_loop).unwrap();
     let surface = unsafe { instance.create_surface(&window) };
     let size = window.inner_size();
-    let swapchain_format = surface.get_preferred_format(&adapter).unwrap();
+    let swapchain_format = surface.get_supported_formats(&adapter)[0];
     let mut config = SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
         format: swapchain_format,
@@ -127,14 +127,14 @@ async fn run() {
                 {
                     let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
                         label: None,
-                        color_attachments: &[RenderPassColorAttachment {
+                        color_attachments: &[Some(RenderPassColorAttachment {
                             view: &view,
                             resolve_target: None,
                             ops: Operations {
                                 load: LoadOp::Clear(wgpu::Color::BLACK),
                                 store: true,
                             },
-                        }],
+                        })],
                         depth_stencil_attachment: None,
                     });
 

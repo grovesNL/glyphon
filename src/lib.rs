@@ -170,7 +170,7 @@ impl TextAtlas {
         let glyph_cache = RecentlyUsedMap::new();
 
         // Create a render pipeline to use for rendering later
-        let shader = device.create_shader_module(&ShaderModuleDescriptor {
+        let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("glyphon shader"),
             source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
         });
@@ -285,11 +285,11 @@ impl TextAtlas {
             fragment: Some(FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
-                targets: &[ColorTargetState {
+                targets: &[Some(ColorTargetState {
                     format,
                     blend: Some(BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                     write_mask: ColorWrites::default(),
-                }],
+                })],
             }),
             primitive: PrimitiveState::default(),
             depth_stencil: None,

@@ -1,9 +1,10 @@
+use fontdue::layout::{HorizontalAlign, VerticalAlign};
 use glyphon::{
     fontdue::{
         layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle},
         Font, FontSettings,
     },
-    Color, HasColor, Resolution, TextAtlas, TextRenderer,
+    Color, HasColor, Resolution, TextAtlas, TextOverflow, TextRenderer,
 };
 use wgpu::{
     Backends, CommandEncoderDescriptor, DeviceDescriptor, Features, Instance, Limits, LoadOp,
@@ -88,19 +89,41 @@ async fn run() {
                 window.request_redraw();
             }
             Event::RedrawRequested(_) => {
-                let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+                let mut layout1 = Layout::new(CoordinateSystem::PositiveYDown);
 
-                layout.reset(&LayoutSettings {
+                layout1.reset(&LayoutSettings {
                     x: 0.0,
                     y: 0.0,
                     ..LayoutSettings::default()
                 });
 
-                layout.append(
+                layout1.append(
                     fonts.as_slice(),
                     &TextStyle::with_user_data(
                         "Hello world!\nI'm on a new line!",
                         50.0,
+                        0,
+                        GlyphUserData,
+                    ),
+                );
+
+                let mut layout2 = Layout::new(CoordinateSystem::PositiveYDown);
+
+                layout2.reset(&LayoutSettings {
+                    x: 0.0,
+                    y: 200.0,
+                    max_width: Some(200.0),
+                    max_height: Some(190.0),
+                    horizontal_align: HorizontalAlign::Center,
+                    vertical_align: VerticalAlign::Middle,
+                    ..LayoutSettings::default()
+                });
+
+                layout2.append(
+                    fonts.as_slice(),
+                    &TextStyle::with_user_data(
+                        "abcdefghijklmnopqrstuvwxyz\nThis should be partially clipped!\nabcdefghijklmnopqrstuvwxyz",
+                        25.0,
                         0,
                         GlyphUserData,
                     ),
@@ -116,7 +139,7 @@ async fn run() {
                             height: config.height,
                         },
                         &fonts,
-                        &[layout],
+                        &[(layout1, TextOverflow::Hide), (layout2, TextOverflow::Hide)],
                     )
                     .unwrap();
 

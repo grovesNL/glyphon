@@ -316,6 +316,15 @@ impl TextAtlas {
     }
 }
 
+/// Controls the overflow behavior of any glyphs that are outside of the layout bounds.
+pub enum TextOverflow {
+    /// Glyphs can overflow the bounds.
+    Overflow,
+    /// Hide any glyphs outside the bounds. If a glyph is partially outside the bounds, it will be
+    /// clipped to the bounds.
+    Hide,
+}
+
 pub struct TextRenderer {
     vertex_buffer: Buffer,
     vertex_buffer_size: u64,
@@ -365,7 +374,7 @@ impl TextRenderer {
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
         fonts: &[Font],
-        layouts: &[Layout<impl HasColor>],
+        layouts: &[(Layout<impl HasColor>, TextOverflow)],
     ) -> Result<(), PrepareError> {
         self.screen_resolution = screen_resolution;
 
@@ -391,7 +400,7 @@ impl TextRenderer {
 
         self.glyphs_in_use.clear();
 
-        for layout in layouts.iter() {
+        for (layout, _) in layouts.iter() {
             for glyph in layout.glyphs() {
                 self.glyphs_in_use.insert(glyph.key);
 
@@ -494,22 +503,86 @@ impl TextRenderer {
         let mut glyph_indices = Vec::new();
         let mut glyphs_added = 0;
 
-        for layout in layouts.iter() {
+        for (layout, overflow) in layouts.iter() {
+            let settings = layout.settings();
+
+            // Note: subpixel positioning is not currently handled, so we always use the nearest
+            // pixel.
+            let bounds_min_x = settings.x.round() as u32;
+            let bounds_max_x = settings
+                .max_width
+                .map(|w| bounds_min_x + w.round() as u32)
+                .unwrap_or(u32::MAX);
+            let bounds_min_y = settings.y.round() as u32;
+            let bounds_max_y = settings
+                .max_height
+                .map(|h| bounds_min_y + h.round() as u32)
+                .unwrap_or(u32::MAX);
+
             for glyph in layout.glyphs() {
+                let mut x = glyph.x.round() as u32;
+                let mut y = glyph.y.round() as u32;
+
                 let details = atlas.glyph_cache.get(&glyph.key).unwrap();
-                let (atlas_x, atlas_y) = match details.gpu_cache {
+                let (mut atlas_x, mut atlas_y) = match details.gpu_cache {
                     GpuCache::InAtlas { x, y } => (x, y),
                     GpuCache::SkipRasterization => continue,
                 };
+
+                let mut width = details.width as u32;
+                let mut height = details.height as u32;
+
+                match overflow {
+                    TextOverflow::Overflow => {}
+                    TextOverflow::Hide => {
+                        // Starts beyond right edge or ends beyond left edge
+                        let max_x = x + width;
+                        if x > bounds_max_x || max_x < bounds_min_x {
+                            continue;
+                        }
+
+                        // Starts beyond bottom edge or ends beyond top edge
+                        let max_y = y + height;
+                        if y > bounds_max_y || max_y < bounds_min_y {
+                            continue;
+                        }
+
+                        // Clip left ege
+                        if x < bounds_min_x {
+                            let right_shift = bounds_min_x - x;
+
+                            x = bounds_min_x;
+                            width = max_x - bounds_min_x;
+                            atlas_x += right_shift as u16;
+                        }
+
+                        // Clip right edge
+                        if x + width > bounds_max_x {
+                            width = bounds_max_x - x;
+                        }
+
+                        // Clip top edge
+                        if y < bounds_min_y {
+                            let bottom_shift = bounds_min_y - y;
+
+                            y = bounds_min_y;
+                            height = max_y - bounds_min_y;
+                            atlas_y += bottom_shift as u16;
+                        }
+
+                        // Clip bottom edge
+                        if y + height > bounds_max_y {
+                            height = bounds_max_y - y;
+                        }
+                    }
+                }
 
                 let color = glyph.user_data.color();
 
                 glyph_vertices.extend(
                     iter::repeat(GlyphToRender {
-                        // Note: subpixel positioning is not currently handled, so we always use
-                        // the nearest pixel.
-                        pos: [glyph.x.round() as u32, glyph.y.round() as u32],
-                        dim: [details.width, details.height],
+                        pos: [x, y],
+                        dim: [width as u16, height as u16],
                         uv: [atlas_x, atlas_y],
                         color: [color.r, color.g, color.b, color.a],
                     })

@@ -17,9 +17,9 @@ impl Display for GlyphonError {
             }
             GlyphonError::ScreenResolutionChanged => write!(
                 f,
-                "Render Error: Screen Resolution Changed Since Prepare was last executed."
+                "Render Error: Screen resolution changed since prepare was last executed."
             ),
-            GlyphonError::AtlasFull => write!(f, "Prepare Error: The Glyph Texture Atlas is full."),
+            GlyphonError::AtlasFull => write!(f, "Prepare Error: The Glyph texture atlas is full."),
         }
     }
 }

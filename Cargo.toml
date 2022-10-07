@@ -11,7 +11,6 @@ license = "MIT OR Apache-2.0 OR Zlib"
 wgpu = "0.13.1"
 fontdue = { git = "https://github.com/mooman219/fontdue", rev = "828b4f4" }
 etagere = "0.2.6"
-thiserror = "1.0.36"
 
 [dev-dependencies]
 winit = "0.26.1"

@@ -5,7 +5,7 @@ mod recently_used;
 mod text_atlas;
 mod text_render;
 
-pub use error::{GlyphonError, Result};
+pub use error::{PrepareError, RenderError};
 pub use fontdue;
 use recently_used::RecentlyUsedMap;
 pub use text_atlas::TextAtlas;

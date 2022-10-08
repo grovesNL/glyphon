@@ -10,7 +10,7 @@ use wgpu::{
 };
 
 use crate::{
-    GlyphDetails, GlyphToRender, GlyphonError, GpuCache, HasColor, Params, Resolution, Result,
+    GlyphDetails, GlyphToRender, GpuCache, HasColor, Params, PrepareError, RenderError, Resolution,
     TextAtlas, TextOverflow,
 };
 
@@ -64,7 +64,7 @@ impl TextRenderer {
         screen_resolution: Resolution,
         fonts: &[Font],
         layouts: &[(Layout<impl HasColor>, TextOverflow)],
-    ) -> Result<()> {
+    ) -> Result<(), PrepareError> {
         self.screen_resolution = screen_resolution;
 
         let atlas_current_resolution = { atlas.params.screen_resolution };
@@ -106,7 +106,7 @@ impl TextRenderer {
                     // Find a position in the packer
                     let allocation = match try_allocate(atlas, metrics.width, metrics.height) {
                         Some(a) => a,
-                        None => return Err(GlyphonError::AtlasFull),
+                        None => return Err(PrepareError::AtlasFull),
                     };
                     let atlas_min = allocation.rectangle.min;
                     let atlas_max = allocation.rectangle.max;
@@ -177,8 +177,8 @@ impl TextRenderer {
                 &atlas.texture_pending[ub.y_min * atlas.width as usize + ub.x_min..],
                 ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new(atlas.width as u32),
-                    rows_per_image: NonZeroU32::new(atlas.height as u32),
+                    bytes_per_row: NonZeroU32::new(atlas.width),
+                    rows_per_image: NonZeroU32::new(atlas.height),
                 },
                 Extent3d {
                     width: (ub.x_max - ub.x_min) as u32,
@@ -348,7 +348,7 @@ impl TextRenderer {
         &'pass mut self,
         atlas: &'pass TextAtlas,
         pass: &mut RenderPass<'pass>,
-    ) -> Result<()> {
+    ) -> Result<(), RenderError> {
         if self.vertices_to_render == 0 {
             return Ok(());
         }
@@ -357,13 +357,13 @@ impl TextRenderer {
             // Validate that glyphs haven't been evicted from cache since `prepare`
             for glyph in self.glyphs_in_use.iter() {
                 if !atlas.glyph_cache.contains_key(glyph) {
-                    return Err(GlyphonError::RemovedFromAtlas);
+                    return Err(RenderError::RemovedFromAtlas);
                 }
             }
 
             // Validate that screen resolution hasn't changed since `prepare`
             if self.screen_resolution != atlas.params.screen_resolution {
-                return Err(GlyphonError::ScreenResolutionChanged);
+                return Err(RenderError::ScreenResolutionChanged);
             }
         }
 

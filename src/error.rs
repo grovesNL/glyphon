@@ -10,7 +10,7 @@ pub enum PrepareError {
 
 impl Display for PrepareError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Prepare Error: The Glyph texture atlas is full.")
+        write!(f, "Prepare error: glyph texture atlas is full")
     }
 }
 
@@ -26,11 +26,14 @@ impl Display for RenderError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             RenderError::RemovedFromAtlas => {
-                write!(f, "Render Error: Glyph no longer Exists within the Atlas.")
+                write!(
+                    f,
+                    "Render error: glyph no longer exists within the texture atlas"
+                )
             }
             RenderError::ScreenResolutionChanged => write!(
                 f,
-                "Render Error: Screen resolution changed since prepare was last executed."
+                "Render error: screen resolution changed since last `prepare` call"
             ),
         }
     }

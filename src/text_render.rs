@@ -195,22 +195,22 @@ impl TextRenderer {
         for (layout, overflow) in layouts.iter() {
             let settings = layout.settings();
 
-            // Note: subpixel positioning is not currently handled, so we always use the nearest
-            // pixel.
-            let bounds_min_x = settings.x.round() as u32;
+            // Note: subpixel positioning is not currently handled, so we always truncate down to
+            // the nearest pixel.
+            let bounds_min_x = settings.x.trunc() as u32;
             let bounds_max_x = settings
                 .max_width
-                .map(|w| bounds_min_x + w.round() as u32)
+                .map(|w| bounds_min_x + w.trunc() as u32)
                 .unwrap_or(u32::MAX);
-            let bounds_min_y = settings.y.round() as u32;
+            let bounds_min_y = settings.y.trunc() as u32;
             let bounds_max_y = settings
                 .max_height
-                .map(|h| bounds_min_y + h.round() as u32)
+                .map(|h| bounds_min_y + h.trunc() as u32)
                 .unwrap_or(u32::MAX);
 
             for glyph in layout.glyphs() {
-                let mut x = glyph.x.round() as u32;
-                let mut y = glyph.y.round() as u32;
+                let mut x = glyph.x.trunc() as u32;
+                let mut y = glyph.y.trunc() as u32;
 
                 let details = atlas.glyph_cache.get(&glyph.key).unwrap();
                 let (mut atlas_x, mut atlas_y) = match details.gpu_cache {

@@ -8,10 +8,10 @@ repository = "https://github.com/grovesNL/glyphon"
 license = "MIT OR Apache-2.0 OR Zlib"
 
 [dependencies]
-wgpu = "0.13.1"
+wgpu = "0.14.0"
 fontdue = { git = "https://github.com/mooman219/fontdue", rev = "828b4f4" }
 etagere = "0.2.6"
 
 [dev-dependencies]
-winit = "0.26.1"
+winit = "0.27.0"
 pollster = "0.2.5"

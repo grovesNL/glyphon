@@ -7,8 +7,8 @@ use glyphon::{
     Color, HasColor, Resolution, TextAtlas, TextOverflow, TextRenderer,
 };
 use wgpu::{
-    Backends, CommandEncoderDescriptor, DeviceDescriptor, Features, Instance, Limits, LoadOp,
-    Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor,
+    Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
+    Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor,
     RequestAdapterOptions, SurfaceConfiguration, TextureUsages, TextureViewDescriptor,
 };
 use winit::{
@@ -64,6 +64,7 @@ async fn run() {
         width: size.width,
         height: size.height,
         present_mode: PresentMode::Mailbox,
+        alpha_mode: CompositeAlphaMode::Opaque,
     };
     surface.configure(&device, &config);
 

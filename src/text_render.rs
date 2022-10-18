@@ -14,6 +14,7 @@ use crate::{
     TextAtlas, TextOverflow,
 };
 
+/// A text renderer that uses cached glyphs to render text into an existing render pass.
 pub struct TextRenderer {
     vertex_buffer: Buffer,
     vertex_buffer_size: u64,
@@ -25,6 +26,7 @@ pub struct TextRenderer {
 }
 
 impl TextRenderer {
+    /// Creates a new `TextRenderer`.
     pub fn new(device: &Device, _queue: &Queue) -> Self {
         let vertex_buffer_size = next_copy_buffer_size(4096);
         let vertex_buffer = device.create_buffer(&BufferDescriptor {
@@ -56,6 +58,7 @@ impl TextRenderer {
         }
     }
 
+    /// Prepares all of the provided layouts for rendering.
     pub fn prepare(
         &mut self,
         device: &Device,
@@ -344,6 +347,7 @@ impl TextRenderer {
         Ok(())
     }
 
+    /// Renders all layouts that were previously provided to `prepare`.
     pub fn render<'pass>(
         &'pass mut self,
         atlas: &'pass TextAtlas,

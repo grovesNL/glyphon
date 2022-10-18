@@ -13,6 +13,7 @@ use wgpu::{
 
 use crate::{GlyphDetails, GlyphToRender, Params, RecentlyUsedMap, Resolution};
 
+/// An atlas containing a cache of rasterized glyphs that can be rendered.
 pub struct TextAtlas {
     pub(crate) texture_pending: Vec<u8>,
     pub(crate) texture: Texture,
@@ -27,6 +28,7 @@ pub struct TextAtlas {
 }
 
 impl TextAtlas {
+    /// Creates a new `TextAtlas`.
     pub fn new(device: &Device, _queue: &Queue, format: TextureFormat) -> Self {
         let max_texture_dimension_2d = device.limits().max_texture_dimension_2d;
         let width = max_texture_dimension_2d;

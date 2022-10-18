@@ -3,6 +3,7 @@ use std::{
     fmt::{self, Display, Formatter},
 };
 
+/// An error that occurred while preparing text for rendering.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrepareError {
     AtlasFull,
@@ -16,6 +17,7 @@ impl Display for PrepareError {
 
 impl Error for PrepareError {}
 
+/// An error that occurred while rendering text.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RenderError {
     RemovedFromAtlas,

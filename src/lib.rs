@@ -11,15 +11,22 @@ use recently_used::RecentlyUsedMap;
 pub use text_atlas::TextAtlas;
 pub use text_render::TextRenderer;
 
+/// The color to use when rendering text.
 #[repr(C)]
 pub struct Color {
+    /// The red component of the color.
     pub r: u8,
+    /// The green component of the color.
     pub g: u8,
+    /// The blue component of the color.
     pub b: u8,
+    /// The alpha component of the color.
     pub a: u8,
 }
 
+/// Allows text to be colored during rendering.
 pub trait HasColor: Copy {
+    /// The color to use when rendering text.
     fn color(&self) -> Color;
 }
 
@@ -44,16 +51,19 @@ pub(crate) struct GlyphToRender {
     color: [u8; 4],
 }
 
+/// The screen resolution to use when rendering text.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Resolution {
+    /// The width of the screen in pixels.
     pub width: u32,
+    /// The height of the screen in pixels.
     pub height: u32,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Params {
+pub(crate) struct Params {
     screen_resolution: Resolution,
     _pad: [u32; 2],
 }

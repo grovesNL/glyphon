@@ -3,7 +3,7 @@ use fontdue::{
     layout::{GlyphRasterConfig, Layout},
     Font,
 };
-use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice};
+use std::{borrow::Borrow, collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
     IndexFormat, Origin3d, Queue, RenderPass, TextureAspect, COPY_BUFFER_ALIGNMENT,
@@ -59,14 +59,14 @@ impl TextRenderer {
     }
 
     /// Prepares all of the provided layouts for rendering.
-    pub fn prepare(
+    pub fn prepare<C: HasColor>(
         &mut self,
         device: &Device,
         queue: &Queue,
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
         fonts: &[Font],
-        layouts: &[(Layout<impl HasColor>, TextOverflow)],
+        layouts: &[(impl Borrow<Layout<C>>, TextOverflow)],
     ) -> Result<(), PrepareError> {
         self.screen_resolution = screen_resolution;
 
@@ -93,7 +93,7 @@ impl TextRenderer {
         self.glyphs_in_use.clear();
 
         for (layout, _) in layouts.iter() {
-            for glyph in layout.glyphs() {
+            for glyph in layout.borrow().glyphs() {
                 self.glyphs_in_use.insert(glyph.key);
 
                 let already_on_gpu = atlas.glyph_cache.contains_key(&glyph.key);
@@ -196,6 +196,7 @@ impl TextRenderer {
         let mut glyphs_added = 0;
 
         for (layout, overflow) in layouts.iter() {
+            let layout = layout.borrow();
             let settings = layout.settings();
 
             // Note: subpixel positioning is not currently handled, so we always truncate down to

@@ -13,6 +13,7 @@ pub use text_render::TextRenderer;
 
 /// The color to use when rendering text.
 #[repr(C)]
+#[derive(Clone, Copy, Debug)]
 pub struct Color {
     /// The red component of the color.
     pub r: u8,

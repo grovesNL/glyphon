@@ -1,5 +1,5 @@
+use cosmic_text::CacheKey;
 use etagere::{size2, BucketedAtlasAllocator};
-use fontdue::layout::GlyphRasterConfig;
 use std::{borrow::Cow, mem::size_of, num::NonZeroU64, sync::Arc};
 use wgpu::{
     BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
@@ -20,7 +20,7 @@ pub struct TextAtlas {
     pub(crate) packer: BucketedAtlasAllocator,
     pub(crate) width: u32,
     pub(crate) height: u32,
-    pub(crate) glyph_cache: RecentlyUsedMap<GlyphRasterConfig, GlyphDetails>,
+    pub(crate) glyph_cache: RecentlyUsedMap<CacheKey, GlyphDetails>,
     pub(crate) params: Params,
     pub(crate) params_buffer: Buffer,
     pub(crate) pipeline: Arc<RenderPipeline>,

@@ -6,10 +6,11 @@ mod text_atlas;
 mod text_render;
 
 pub use error::{PrepareError, RenderError};
-pub use fontdue;
 use recently_used::RecentlyUsedMap;
 pub use text_atlas::TextAtlas;
 pub use text_render::TextRenderer;
+
+pub use cosmic_text;
 
 /// The color to use when rendering text.
 #[repr(C)]

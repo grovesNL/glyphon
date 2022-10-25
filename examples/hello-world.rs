@@ -1,11 +1,5 @@
-use fontdue::layout::{HorizontalAlign, VerticalAlign};
-use glyphon::{
-    fontdue::{
-        layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle},
-        Font, FontSettings,
-    },
-    Color, HasColor, Resolution, TextAtlas, TextOverflow, TextRenderer,
-};
+use cosmic_text::{fontdb, FontSystem, TextBuffer, TextMetrics};
+use glyphon::{Color, HasColor, Resolution, TextAtlas, TextRenderer};
 use wgpu::{
     Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
     Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor,
@@ -34,6 +28,8 @@ impl HasColor for GlyphUserData {
         }
     }
 }
+
+static mut FONT_SYSTEM: Option<FontSystem> = None;
 
 async fn run() {
     let instance = Instance::new(Backends::all());
@@ -70,10 +66,14 @@ async fn run() {
 
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
     let mut text_renderer = TextRenderer::new(&device, &queue);
-
-    let font = include_bytes!("./Inter-Bold.ttf") as &[u8];
-    let font = Font::from_bytes(font, FontSettings::default()).unwrap();
-    let fonts = vec![font];
+    unsafe { FONT_SYSTEM = Some(FontSystem::new()) };
+    let font_matches = unsafe {
+        FONT_SYSTEM.as_ref().unwrap().matches(|info| {
+            info.style == fontdb::Style::Normal
+                && info.weight == fontdb::Weight::NORMAL
+                && info.stretch == fontdb::Stretch::Normal
+        })
+    };
 
     event_loop.run(move |event, _, control_flow| {
         let _ = (&instance, &adapter);
@@ -90,45 +90,11 @@ async fn run() {
                 window.request_redraw();
             }
             Event::RedrawRequested(_) => {
-                let mut layout1 = Layout::new(CoordinateSystem::PositiveYDown);
+                let mut buffer =
+                    TextBuffer::new(font_matches.as_ref().unwrap(), TextMetrics::new(20, 50));
 
-                layout1.reset(&LayoutSettings {
-                    x: 0.0,
-                    y: 0.0,
-                    ..LayoutSettings::default()
-                });
-
-                layout1.append(
-                    fonts.as_slice(),
-                    &TextStyle::with_user_data(
-                        "Hello world!\nI'm on a new line!",
-                        50.0,
-                        0,
-                        GlyphUserData,
-                    ),
-                );
-
-                let mut layout2 = Layout::new(CoordinateSystem::PositiveYDown);
-
-                layout2.reset(&LayoutSettings {
-                    x: 0.0,
-                    y: 200.0,
-                    max_width: Some(200.0),
-                    max_height: Some(190.0),
-                    horizontal_align: HorizontalAlign::Center,
-                    vertical_align: VerticalAlign::Middle,
-                    ..LayoutSettings::default()
-                });
-
-                layout2.append(
-                    fonts.as_slice(),
-                    &TextStyle::with_user_data(
-                        "abcdefghijklmnopqrstuvwxyz\nThis should be partially clipped!\nabcdefghijklmnopqrstuvwxyz",
-                        25.0,
-                        0,
-                        GlyphUserData,
-                    ),
-                );
+                buffer.set_text("HELLO_FROM_COSMIC_INSIDE_OF_GLYPHON_WGPU");
+                buffer.shape_until_cursor();
 
                 text_renderer
                     .prepare(
@@ -139,8 +105,7 @@ async fn run() {
                             width: config.width,
                             height: config.height,
                         },
-                        &fonts,
-                        &[(layout1, TextOverflow::Hide), (layout2, TextOverflow::Hide)],
+                        &mut buffer,
                     )
                     .unwrap();
 

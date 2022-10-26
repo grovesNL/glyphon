@@ -108,8 +108,7 @@ impl TextRenderer {
 
                     let image = self
                         .swash_cache
-                        .get_image(&buffer.font_matches, glyph.cache_key)
-                        .as_ref()
+                        .get_image_uncached(&buffer.font_matches, glyph.cache_key)
                         .unwrap();
                     let bitmap = image.data.as_slice();
                     let width = image.placement.width as usize;

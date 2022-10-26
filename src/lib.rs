@@ -42,6 +42,8 @@ pub(crate) struct GlyphDetails {
     height: u16,
     gpu_cache: GpuCache,
     atlas_id: Option<AllocId>,
+    top: i16,
+    left: i16,
 }
 
 #[repr(C)]

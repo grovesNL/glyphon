@@ -1,4 +1,4 @@
-use cosmic_text::{CacheKey, TextBuffer};
+use cosmic_text::{CacheKey, SwashCache, TextBuffer};
 use etagere::{size2, Allocation};
 
 use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice};
@@ -21,6 +21,7 @@ pub struct TextRenderer {
     vertices_to_render: u32,
     glyphs_in_use: HashSet<CacheKey>,
     screen_resolution: Resolution,
+    swash_cache: SwashCache,
 }
 
 impl TextRenderer {
@@ -42,6 +43,8 @@ impl TextRenderer {
             mapped_at_creation: false,
         });
 
+        let swash_cache = SwashCache::new();
+
         Self {
             vertex_buffer,
             vertex_buffer_size,
@@ -53,6 +56,7 @@ impl TextRenderer {
                 width: 0,
                 height: 0,
             },
+            swash_cache,
         }
     }
 
@@ -92,87 +96,85 @@ impl TextRenderer {
         let mut buffers = [(buffer, TextOverflow::Hide)];
 
         for (buffer, _) in buffers.iter_mut() {
-            for line in buffer.lines.iter() {
-                let layout = match line.layout_opt.as_ref() {
-                    Some(l) => l,
-                    None => continue,
-                };
-                for layout_line in layout {
-                    for glyph in layout_line.glyphs.iter() {
-                        let key = glyph.inner.0;
+            for run in buffer.layout_runs() {
+                for glyph in run.glyphs.iter() {
+                    self.glyphs_in_use.insert(glyph.cache_key);
 
-                        self.glyphs_in_use.insert(key);
+                    let already_on_gpu = atlas.glyph_cache.contains_key(&glyph.cache_key);
 
-                        let already_on_gpu = atlas.glyph_cache.contains_key(&key);
+                    if already_on_gpu {
+                        continue;
+                    }
 
-                        if already_on_gpu {
-                            continue;
-                        }
+                    let image = self
+                        .swash_cache
+                        .get_image(&buffer.font_matches, glyph.cache_key)
+                        .as_ref()
+                        .unwrap();
+                    let bitmap = image.data.as_slice();
+                    let width = image.placement.width as usize;
+                    let height = image.placement.height as usize;
 
-                        let image = layout_line.rasterize_glyph(glyph).unwrap();
-                        let bitmap = image.data.clone();
-                        let width = image.placement.width as usize;
-                        let height = image.placement.height as usize;
+                    let should_rasterize = width > 0 && height > 0;
 
-                        let should_rasterize = width > 0 && height > 0;
-
-                        let (gpu_cache, atlas_id) = if should_rasterize {
-                            // Find a position in the packer
-                            let allocation = match try_allocate(atlas, width, height) {
-                                Some(a) => a,
-                                None => return Err(PrepareError::AtlasFull),
-                            };
-                            let atlas_min = allocation.rectangle.min;
-                            let atlas_max = allocation.rectangle.max;
-
-                            for row in 0..height {
-                                let y_offset = atlas_min.y as usize;
-                                let x_offset =
-                                    (y_offset + row) * atlas.width as usize + atlas_min.x as usize;
-                                let bitmap_row = &bitmap[row * width..(row + 1) * width];
-                                atlas.texture_pending[x_offset..x_offset + width]
-                                    .copy_from_slice(bitmap_row);
-                            }
-
-                            match upload_bounds.as_mut() {
-                                Some(ub) => {
-                                    ub.x_min = ub.x_min.min(atlas_min.x as usize);
-                                    ub.x_max = ub.x_max.max(atlas_max.x as usize);
-                                    ub.y_min = ub.y_min.min(atlas_min.y as usize);
-                                    ub.y_max = ub.y_max.max(atlas_max.y as usize);
-                                }
-                                None => {
-                                    upload_bounds = Some(UploadBounds {
-                                        x_min: atlas_min.x as usize,
-                                        x_max: atlas_max.x as usize,
-                                        y_min: atlas_min.y as usize,
-                                        y_max: atlas_max.y as usize,
-                                    });
-                                }
-                            }
-
-                            (
-                                GpuCache::InAtlas {
-                                    x: atlas_min.x as u16,
-                                    y: atlas_min.y as u16,
-                                },
-                                Some(allocation.id),
-                            )
-                        } else {
-                            (GpuCache::SkipRasterization, None)
+                    let (gpu_cache, atlas_id) = if should_rasterize {
+                        // Find a position in the packer
+                        let allocation = match try_allocate(atlas, width, height) {
+                            Some(a) => a,
+                            None => return Err(PrepareError::AtlasFull),
                         };
+                        let atlas_min = allocation.rectangle.min;
+                        let atlas_max = allocation.rectangle.max;
 
-                        if !atlas.glyph_cache.contains_key(&key) {
-                            atlas.glyph_cache.insert(
-                                key,
-                                GlyphDetails {
-                                    width: width as u16,
-                                    height: height as u16,
-                                    gpu_cache,
-                                    atlas_id,
-                                },
-                            );
+                        for row in 0..height {
+                            let y_offset = atlas_min.y as usize;
+                            let x_offset =
+                                (y_offset + row) * atlas.width as usize + atlas_min.x as usize;
+                            let bitmap_row = &bitmap[row * width..(row + 1) * width];
+                            atlas.texture_pending[x_offset..x_offset + width]
+                                .copy_from_slice(bitmap_row);
                         }
+
+                        match upload_bounds.as_mut() {
+                            Some(ub) => {
+                                ub.x_min = ub.x_min.min(atlas_min.x as usize);
+                                ub.x_max = ub.x_max.max(atlas_max.x as usize);
+                                ub.y_min = ub.y_min.min(atlas_min.y as usize);
+                                ub.y_max = ub.y_max.max(atlas_max.y as usize);
+                            }
+                            None => {
+                                upload_bounds = Some(UploadBounds {
+                                    x_min: atlas_min.x as usize,
+                                    x_max: atlas_max.x as usize,
+                                    y_min: atlas_min.y as usize,
+                                    y_max: atlas_max.y as usize,
+                                });
+                            }
+                        }
+
+                        (
+                            GpuCache::InAtlas {
+                                x: atlas_min.x as u16,
+                                y: atlas_min.y as u16,
+                            },
+                            Some(allocation.id),
+                        )
+                    } else {
+                        (GpuCache::SkipRasterization, None)
+                    };
+
+                    if !atlas.glyph_cache.contains_key(&glyph.cache_key) {
+                        atlas.glyph_cache.insert(
+                            glyph.cache_key,
+                            GlyphDetails {
+                                width: width as u16,
+                                height: height as u16,
+                                gpu_cache,
+                                atlas_id,
+                                top: image.placement.top as i16,
+                                left: image.placement.left as i16,
+                            },
+                        );
                     }
                 }
             }
@@ -216,98 +218,89 @@ impl TextRenderer {
             let bounds_min_y = 0u32;
             let bounds_max_y = u32::MAX;
 
-            for line in buffer.lines.iter() {
-                let layout = match line.layout_opt.as_ref() {
-                    Some(l) => l,
-                    None => continue,
-                };
-                for layout_line in layout {
-                    for glyph in layout_line.glyphs.iter() {
-                        let key = glyph.inner.0;
+            for run in buffer.layout_runs() {
+                let line_y = run.line_y;
 
-                        let details = atlas.glyph_cache.get(&key).unwrap();
+                for glyph in run.glyphs.iter() {
+                    let details = atlas.glyph_cache.get(&glyph.cache_key).unwrap();
 
-                        let mut x = glyph.x.trunc() as u32;
-                        let mut y: u32 = (buffer.metrics.line_height as i32
-                            - details.height as i32)
-                            .try_into()
-                            .unwrap();
+                    let mut x = (glyph.x_int + details.left as i32) as u32;
+                    let mut y = (line_y + glyph.y_int - details.top as i32) as u32;
 
-                        let (mut atlas_x, mut atlas_y) = match details.gpu_cache {
-                            GpuCache::InAtlas { x, y } => (x, y),
-                            GpuCache::SkipRasterization => continue,
-                        };
+                    let (mut atlas_x, mut atlas_y) = match details.gpu_cache {
+                        GpuCache::InAtlas { x, y } => (x, y),
+                        GpuCache::SkipRasterization => continue,
+                    };
 
-                        let mut width = details.width as u32;
-                        let mut height = details.height as u32;
+                    let mut width = details.width as u32;
+                    let mut height = details.height as u32;
 
-                        match overflow {
-                            TextOverflow::Overflow => {}
-                            TextOverflow::Hide => {
-                                // Starts beyond right edge or ends beyond left edge
-                                let max_x = x + width;
-                                if x > bounds_max_x || max_x < bounds_min_x {
-                                    continue;
-                                }
+                    match overflow {
+                        TextOverflow::Overflow => {}
+                        TextOverflow::Hide => {
+                            // Starts beyond right edge or ends beyond left edge
+                            let max_x = x + width;
+                            if x > bounds_max_x || max_x < bounds_min_x {
+                                continue;
+                            }
 
-                                // Starts beyond bottom edge or ends beyond top edge
-                                let max_y = y + height;
-                                if y > bounds_max_y || max_y < bounds_min_y {
-                                    continue;
-                                }
+                            // Starts beyond bottom edge or ends beyond top edge
+                            let max_y = y + height;
+                            if y > bounds_max_y || max_y < bounds_min_y {
+                                continue;
+                            }
 
-                                // Clip left ege
-                                if x < bounds_min_x {
-                                    let right_shift = bounds_min_x - x;
+                            // Clip left ege
+                            if x < bounds_min_x {
+                                let right_shift = bounds_min_x - x;
 
-                                    x = bounds_min_x;
-                                    width = max_x - bounds_min_x;
-                                    atlas_x += right_shift as u16;
-                                }
+                                x = bounds_min_x;
+                                width = max_x - bounds_min_x;
+                                atlas_x += right_shift as u16;
+                            }
 
-                                // Clip right edge
-                                if x + width > bounds_max_x {
-                                    width = bounds_max_x - x;
-                                }
+                            // Clip right edge
+                            if x + width > bounds_max_x {
+                                width = bounds_max_x - x;
+                            }
 
-                                // Clip top edge
-                                if y < bounds_min_y {
-                                    let bottom_shift = bounds_min_y - y;
+                            // Clip top edge
+                            if y < bounds_min_y {
+                                let bottom_shift = bounds_min_y - y;
 
-                                    y = bounds_min_y;
-                                    height = max_y - bounds_min_y;
-                                    atlas_y += bottom_shift as u16;
-                                }
+                                y = bounds_min_y;
+                                height = max_y - bounds_min_y;
+                                atlas_y += bottom_shift as u16;
+                            }
 
-                                // Clip bottom edge
-                                if y + height > bounds_max_y {
-                                    height = bounds_max_y - y;
-                                }
+                            // Clip bottom edge
+                            if y + height > bounds_max_y {
+                                height = bounds_max_y - y;
                             }
                         }
-
-                        glyph_vertices.extend(
-                            iter::repeat(GlyphToRender {
-                                pos: [x as i32, y as i32],
-                                dim: [width as u16, height as u16],
-                                uv: [atlas_x, atlas_y],
-                                color: [255, 0, 255, 255],
-                            })
-                            .take(4),
-                        );
-
-                        let start = 4 * glyphs_added as u32;
-                        glyph_indices.extend([
-                            start,
-                            start + 1,
-                            start + 2,
-                            start,
-                            start + 2,
-                            start + 3,
-                        ]);
-
-                        glyphs_added += 1;
                     }
+
+                    glyph_vertices.extend(
+                        iter::repeat(GlyphToRender {
+                            pos: [x as i32, y as i32],
+                            dim: [width as u16, height as u16],
+                            uv: [atlas_x, atlas_y],
+                            color: [255, 0, 255, 255],
+                        })
+                        .take(4),
+                    );
+
+                    let start = 4 * glyphs_added as u32;
+                    glyph_indices.extend([
+                        start,
+                        start + 1,
+                        start + 2,
+                        start,
+                        start + 2,
+                        start + 3,
+                    ]);
+
+                    glyphs_added += 1;
                 }
             }
         }

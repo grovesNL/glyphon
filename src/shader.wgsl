@@ -77,5 +77,5 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in_frag: VertexOutput) -> @location(0) vec4<f32> {
-    return in_frag.color * textureSample(atlas_texture, atlas_sampler, in_frag.uv).x;
+    return in_frag.color * textureSample(atlas_texture, atlas_sampler, in_frag.uv);
 }

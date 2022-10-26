@@ -212,10 +212,10 @@ impl TextRenderer {
         for (buffer, overflow) in buffers.iter() {
             // Note: subpixel positioning is not currently handled, so we always truncate down to
             // the nearest pixel.
-            let bounds_min_x = 0u32;
-            let bounds_max_x = u32::MAX;
-            let bounds_min_y = 0u32;
-            let bounds_max_y = u32::MAX;
+            let bounds_min_x = i32::MIN;
+            let bounds_max_x = i32::MAX;
+            let bounds_min_y = i32::MIN;
+            let bounds_max_y = i32::MAX;
 
             for run in buffer.layout_runs() {
                 let line_y = run.line_y;
@@ -223,16 +223,16 @@ impl TextRenderer {
                 for glyph in run.glyphs.iter() {
                     let details = atlas.glyph_cache.get(&glyph.cache_key).unwrap();
 
-                    let mut x = (glyph.x_int + details.left as i32) as u32;
-                    let mut y = (line_y + glyph.y_int - details.top as i32) as u32;
+                    let mut x = glyph.x_int + details.left as i32;
+                    let mut y = line_y + glyph.y_int - details.top as i32;
 
                     let (mut atlas_x, mut atlas_y) = match details.gpu_cache {
                         GpuCache::InAtlas { x, y } => (x, y),
                         GpuCache::SkipRasterization => continue,
                     };
 
-                    let mut width = details.width as u32;
-                    let mut height = details.height as u32;
+                    let mut width = details.width as i32;
+                    let mut height = details.height as i32;
 
                     match overflow {
                         TextOverflow::Overflow => {}

@@ -76,7 +76,7 @@ async fn run() {
         TextMetrics::new(32, 44),
     );
     buffer.set_size(800, 600);
-    buffer.set_text(include_str!("./arabic.txt"));
+    buffer.set_text(include_str!("./ligature.txt"));
     buffer.shape_until_cursor();
 
     event_loop.run(move |event, _, control_flow| {

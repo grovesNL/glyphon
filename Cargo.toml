@@ -12,7 +12,7 @@ wgpu = "0.14.0"
 fontdue = { git = "https://github.com/mooman219/fontdue", rev = "828b4f4" }
 etagere = "0.2.6"
 #cosmic-text = { git = "https://github.com/pop-os/cosmic-text", rev = "ef686f8" }
-cosmic-text = { path = "../cosmic-text" }
+cosmic-text = { path = "../cosmic-text", features = ["swash"] }
 
 [dev-dependencies]
 winit = "0.27.0"

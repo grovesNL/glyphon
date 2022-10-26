@@ -1,4 +1,4 @@
-use cosmic_text::{fontdb, FontSystem, TextBuffer, TextMetrics};
+use cosmic_text::{Attrs, FontSystem, TextBuffer, TextMetrics};
 use glyphon::{Color, HasColor, Resolution, TextAtlas, TextRenderer};
 use wgpu::{
     Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
@@ -64,16 +64,20 @@ async fn run() {
     };
     surface.configure(&device, &config);
 
+    unsafe {
+        FONT_SYSTEM = Some(FontSystem::new());
+    }
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
     let mut text_renderer = TextRenderer::new(&device, &queue);
-    unsafe { FONT_SYSTEM = Some(FontSystem::new()) };
-    let font_matches = unsafe {
-        FONT_SYSTEM.as_ref().unwrap().matches(|info| {
-            info.style == fontdb::Style::Normal
-                && info.weight == fontdb::Weight::NORMAL
-                && info.stretch == fontdb::Stretch::Normal
-        })
-    };
+
+    let mut buffer = TextBuffer::new(
+        unsafe { FONT_SYSTEM.as_ref().unwrap() },
+        Attrs::new(),
+        TextMetrics::new(32, 44),
+    );
+    buffer.set_size(800, 600);
+    buffer.set_text("Hello from cosmic inside of glyphon/wgpu!");
+    buffer.shape_until_cursor();
 
     event_loop.run(move |event, _, control_flow| {
         let _ = (&instance, &adapter);
@@ -90,12 +94,6 @@ async fn run() {
                 window.request_redraw();
             }
             Event::RedrawRequested(_) => {
-                let mut buffer =
-                    TextBuffer::new(font_matches.as_ref().unwrap(), TextMetrics::new(20, 50));
-
-                buffer.set_text("HELLO_FROM_COSMIC_INSIDE_OF_GLYPHON_WGPU");
-                buffer.shape_until_cursor();
-
                 text_renderer
                     .prepare(
                         &device,

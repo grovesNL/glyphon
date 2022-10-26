@@ -1,4 +1,4 @@
-use cosmic_text::{CacheKey, SwashCache, TextBuffer};
+use cosmic_text::{CacheKey, SwashCache, SwashContent, TextBuffer};
 use etagere::{size2, Allocation};
 
 use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice};
@@ -8,8 +8,8 @@ use wgpu::{
 };
 
 use crate::{
-    GlyphDetails, GlyphToRender, GpuCache, Params, PrepareError, RenderError, Resolution,
-    TextAtlas, TextOverflow,
+    text_atlas::NUM_ATLAS_CHANNELS, GlyphDetails, GlyphToRender, GpuCache, Params, PrepareError,
+    RenderError, Resolution, TextAtlas, TextOverflow,
 };
 
 /// A text renderer that uses cached glyphs to render text into an existing render pass.
@@ -110,7 +110,23 @@ impl TextRenderer {
                         .swash_cache
                         .get_image_uncached(&buffer.font_matches, glyph.cache_key)
                         .unwrap();
-                    let bitmap = image.data.as_slice();
+                    let mut bitmap = image.data;
+
+                    match image.content {
+                        SwashContent::Color => {}
+                        SwashContent::Mask => {
+                            // Technically only one channel is needed, but store the mask in every
+                            // for now.
+                            bitmap = bitmap
+                                .iter()
+                                .flat_map(|color| iter::repeat(*color).take(NUM_ATLAS_CHANNELS))
+                                .collect();
+                        }
+                        SwashContent::SubpixelMask => {
+                            // Not implemented yet, but don't panic if this happens.
+                        }
+                    }
+
                     let width = image.placement.width as usize;
                     let height = image.placement.height as usize;
 
@@ -129,8 +145,10 @@ impl TextRenderer {
                             let y_offset = atlas_min.y as usize;
                             let x_offset =
                                 (y_offset + row) * atlas.width as usize + atlas_min.x as usize;
-                            let bitmap_row = &bitmap[row * width..(row + 1) * width];
-                            atlas.texture_pending[x_offset..x_offset + width]
+                            let bitmap_row = &bitmap[row * width * NUM_ATLAS_CHANNELS
+                                ..(row + 1) * width * NUM_ATLAS_CHANNELS];
+                            atlas.texture_pending[x_offset * NUM_ATLAS_CHANNELS
+                                ..(x_offset + width) * NUM_ATLAS_CHANNELS]
                                 .copy_from_slice(bitmap_row);
                         }
 
@@ -194,7 +212,7 @@ impl TextRenderer {
                 &atlas.texture_pending[ub.y_min * atlas.width as usize + ub.x_min..],
                 ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new(atlas.width),
+                    bytes_per_row: NonZeroU32::new(atlas.width * NUM_ATLAS_CHANNELS as u32),
                     rows_per_image: NonZeroU32::new(atlas.height),
                 },
                 Extent3d {
@@ -284,7 +302,8 @@ impl TextRenderer {
                             pos: [x as i32, y as i32],
                             dim: [width as u16, height as u16],
                             uv: [atlas_x, atlas_y],
-                            color: [255, 0, 255, 255],
+                            // TODO
+                            color: [255, 255, 255, 255],
                         })
                         .take(4),
                     );

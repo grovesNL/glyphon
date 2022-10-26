@@ -13,6 +13,8 @@ use wgpu::{
 
 use crate::{GlyphDetails, GlyphToRender, Params, RecentlyUsedMap, Resolution};
 
+pub(crate) const NUM_ATLAS_CHANNELS: usize = 4usize;
+
 /// An atlas containing a cache of rasterized glyphs that can be rendered.
 pub struct TextAtlas {
     pub(crate) texture_pending: Vec<u8>,
@@ -35,8 +37,9 @@ impl TextAtlas {
         let height = max_texture_dimension_2d;
 
         let packer = BucketedAtlasAllocator::new(size2(width as i32, height as i32));
+
         // Create a texture to use for our atlas
-        let texture_pending = vec![0; (width * height) as usize];
+        let texture_pending = vec![0; (width * height) as usize * NUM_ATLAS_CHANNELS];
         let texture = device.create_texture(&TextureDescriptor {
             label: Some("glyphon atlas"),
             size: Extent3d {
@@ -47,7 +50,7 @@ impl TextAtlas {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::R8Unorm,
+            format: TextureFormat::Rgba8Unorm,
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
         });
         let texture_view = texture.create_view(&TextureViewDescriptor::default());

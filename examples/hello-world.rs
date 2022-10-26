@@ -3,7 +3,8 @@ use glyphon::{Color, HasColor, Resolution, TextAtlas, TextRenderer};
 use wgpu::{
     Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
     Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor,
-    RequestAdapterOptions, SurfaceConfiguration, TextureUsages, TextureViewDescriptor,
+    RequestAdapterOptions, SurfaceConfiguration, TextureFormat, TextureUsages,
+    TextureViewDescriptor,
 };
 use winit::{
     event::{Event, WindowEvent},
@@ -53,7 +54,8 @@ async fn run() {
     let window = Window::new(&event_loop).unwrap();
     let surface = unsafe { instance.create_surface(&window) };
     let size = window.inner_size();
-    let swapchain_format = surface.get_supported_formats(&adapter)[0];
+    // TODO: handle srgb
+    let swapchain_format = TextureFormat::Bgra8Unorm;
     let mut config = SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
         format: swapchain_format,

@@ -21,7 +21,6 @@ pub struct TextRenderer {
     vertices_to_render: u32,
     glyphs_in_use: HashSet<CacheKey>,
     screen_resolution: Resolution,
-    swash_cache: SwashCache,
 }
 
 impl TextRenderer {
@@ -43,8 +42,6 @@ impl TextRenderer {
             mapped_at_creation: false,
         });
 
-        let swash_cache = SwashCache::new();
-
         Self {
             vertex_buffer,
             vertex_buffer_size,
@@ -56,7 +53,6 @@ impl TextRenderer {
                 width: 0,
                 height: 0,
             },
-            swash_cache,
         }
     }
 
@@ -68,6 +64,7 @@ impl TextRenderer {
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
         buffer: &mut TextBuffer<'a>,
+        cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {
         self.screen_resolution = screen_resolution;
 
@@ -106,10 +103,7 @@ impl TextRenderer {
                         continue;
                     }
 
-                    let image = self
-                        .swash_cache
-                        .get_image_uncached(&buffer.font_matches, glyph.cache_key)
-                        .unwrap();
+                    let image = cache.get_image_uncached(glyph.cache_key).unwrap();
                     let mut bitmap = image.data;
 
                     match image.content {

@@ -1,4 +1,4 @@
-use cosmic_text::{Attrs, FontSystem, TextBuffer, TextMetrics};
+use cosmic_text::{Attrs, FontSystem, SwashCache, TextBuffer, TextMetrics};
 use glyphon::{Color, HasColor, Resolution, TextAtlas, TextRenderer};
 use wgpu::{
     Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
@@ -76,19 +76,18 @@ async fn run() {
     surface.configure(&device, &config);
 
     // Set up text renderer
+    let mut text_renderer = TextRenderer::new(&device, &queue);
     unsafe {
         FONT_SYSTEM = Some(FontSystem::new());
     }
+    let mut cache = SwashCache::new(unsafe { FONT_SYSTEM.as_ref().unwrap() });
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
-    let mut text_renderer = TextRenderer::new(&device, &queue);
-
     let mut buffer = TextBuffer::new(
         unsafe { FONT_SYSTEM.as_ref().unwrap() },
-        Attrs::new(),
         TextMetrics::new(32, 44),
     );
     buffer.set_size((width as f64 * scale_factor) as i32, (height as f64) as i32);
-    buffer.set_text(include_str!("./ligature.txt"));
+    buffer.set_text(include_str!("./ligature.txt"), Attrs::new());
     buffer.shape_until_cursor();
 
     event_loop.run(move |event, _, control_flow| {
@@ -116,6 +115,7 @@ async fn run() {
                             height: config.height,
                         },
                         &mut buffer,
+                        &mut cache,
                     )
                     .unwrap();
 

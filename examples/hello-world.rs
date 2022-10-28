@@ -1,5 +1,5 @@
 use cosmic_text::{Attrs, FontSystem, SwashCache, TextBuffer, TextMetrics};
-use glyphon::{Color, HasColor, Resolution, TextAtlas, TextRenderer};
+use glyphon::{Resolution, TextAtlas, TextRenderer};
 use wgpu::{
     Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
     Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor,
@@ -15,20 +15,6 @@ use winit::{
 
 fn main() {
     pollster::block_on(run());
-}
-
-#[derive(Clone, Copy)]
-struct GlyphUserData;
-
-impl HasColor for GlyphUserData {
-    fn color(&self) -> Color {
-        Color {
-            r: 255,
-            g: 255,
-            b: 0,
-            a: 255,
-        }
-    }
 }
 
 static mut FONT_SYSTEM: Option<FontSystem> = None;

@@ -26,12 +26,6 @@ pub struct Color {
     pub a: u8,
 }
 
-/// Allows text to be colored during rendering.
-pub trait HasColor: Copy {
-    /// The color to use when rendering text.
-    fn color(&self) -> Color;
-}
-
 pub(crate) enum GpuCache {
     InAtlas { x: u16, y: u16 },
     SkipRasterization,

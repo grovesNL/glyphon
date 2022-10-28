@@ -1,4 +1,4 @@
-use cosmic_text::{Attrs, FontSystem, SwashCache, TextBuffer, TextMetrics};
+use cosmic_text::{Attrs, Color, FontSystem, SwashCache, TextBuffer, TextMetrics};
 use glyphon::{Resolution, TextAtlas, TextRenderer};
 use wgpu::{
     Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
@@ -101,6 +101,7 @@ async fn run() {
                             height: config.height,
                         },
                         &mut buffer,
+                        Color::rgb(255, 255, 255),
                         &mut cache,
                     )
                     .unwrap();

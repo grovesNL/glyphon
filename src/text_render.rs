@@ -1,4 +1,4 @@
-use cosmic_text::{CacheKey, SwashCache, SwashContent, TextBuffer};
+use cosmic_text::{CacheKey, Color, SwashCache, SwashContent, TextBuffer};
 use etagere::{size2, Allocation};
 
 use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice};
@@ -64,6 +64,7 @@ impl TextRenderer {
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
         buffer: &mut TextBuffer<'a>,
+        default_color: Color,
         cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {
         self.screen_resolution = screen_resolution;
@@ -233,6 +234,11 @@ impl TextRenderer {
                 let line_y = run.line_y;
 
                 for glyph in run.glyphs.iter() {
+                    let color = match glyph.color_opt {
+                        Some(some) => some,
+                        None => default_color,
+                    };
+
                     let details = atlas.glyph_cache.get(&glyph.cache_key).unwrap();
 
                     let mut x = glyph.x_int + details.left as i32;
@@ -296,8 +302,7 @@ impl TextRenderer {
                             pos: [x as i32, y as i32],
                             dim: [width as u16, height as u16],
                             uv: [atlas_x, atlas_y],
-                            // TODO
-                            color: [255, 255, 255, 255],
+                            color: color.0,
                         })
                         .take(4),
                     );

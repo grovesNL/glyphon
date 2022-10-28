@@ -12,20 +12,6 @@ pub use text_render::TextRenderer;
 
 pub use cosmic_text;
 
-/// The color to use when rendering text.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Color {
-    /// The red component of the color.
-    pub r: u8,
-    /// The green component of the color.
-    pub g: u8,
-    /// The blue component of the color.
-    pub b: u8,
-    /// The alpha component of the color.
-    pub a: u8,
-}
-
 pub(crate) enum GpuCache {
     InAtlas { x: u16, y: u16 },
     SkipRasterization,
@@ -46,7 +32,7 @@ pub(crate) struct GlyphToRender {
     pos: [i32; 2],
     dim: [u16; 2],
     uv: [u16; 2],
-    color: [u8; 4],
+    color: u32,
 }
 
 /// The screen resolution to use when rendering text.

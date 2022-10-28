@@ -16,9 +16,8 @@
 
 This crate provides a simple way to render 2D text with [`wgpu`](https://github.com/gfx-rs/wgpu/) by:
 
-- rasterizing glyphs (with [`fontdue`](https://github.com/mooman219/fontdue/))
+- shaping/calculating layout/rasterizing glyphs (with [`cosmic-text`](https://github.com/pop-os/cosmic-text/))
 - packing the glyphs into texture atlas (with [`etagere`](https://github.com/nical/etagere/))
-- calculate layout for text (with [`fontdue`](https://github.com/mooman219/fontdue/))
 - sampling from the texture atlas to render text (with [`wgpu`](https://github.com/gfx-rs/wgpu/))
 
 To avoid extra render passes, rendering uses existing render passes (following the middleware pattern described in [`wgpu`'s Encapsulating Graphics Work wiki page](https://github.com/gfx-rs/wgpu/wiki/Encapsulating-Graphics-Work).

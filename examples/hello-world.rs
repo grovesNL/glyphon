@@ -7,9 +7,10 @@ use wgpu::{
     TextureViewDescriptor,
 };
 use winit::{
+    dpi::LogicalSize,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::Window,
+    window::WindowBuilder,
 };
 
 fn main() {
@@ -33,6 +34,18 @@ impl HasColor for GlyphUserData {
 static mut FONT_SYSTEM: Option<FontSystem> = None;
 
 async fn run() {
+    // Set up window
+    let (width, height) = (800, 600);
+    let event_loop = EventLoop::new();
+    let window = WindowBuilder::new()
+        .with_inner_size(LogicalSize::new(width as f64, height as f64))
+        .with_title("glyphon hello world")
+        .build(&event_loop)
+        .unwrap();
+    let size = window.inner_size();
+    let scale_factor = window.scale_factor();
+
+    // Set up surface
     let instance = Instance::new(Backends::all());
     let adapter = instance
         .request_adapter(&RequestAdapterOptions::default())
@@ -49,11 +62,7 @@ async fn run() {
         )
         .await
         .unwrap();
-
-    let event_loop = EventLoop::new();
-    let window = Window::new(&event_loop).unwrap();
     let surface = unsafe { instance.create_surface(&window) };
-    let size = window.inner_size();
     // TODO: handle srgb
     let swapchain_format = TextureFormat::Bgra8Unorm;
     let mut config = SurfaceConfiguration {
@@ -66,6 +75,7 @@ async fn run() {
     };
     surface.configure(&device, &config);
 
+    // Set up text renderer
     unsafe {
         FONT_SYSTEM = Some(FontSystem::new());
     }
@@ -77,7 +87,7 @@ async fn run() {
         Attrs::new(),
         TextMetrics::new(32, 44),
     );
-    buffer.set_size(800, 600);
+    buffer.set_size((width as f64 * scale_factor) as i32, (height as f64) as i32);
     buffer.set_text(include_str!("./ligature.txt"));
     buffer.shape_until_cursor();
 

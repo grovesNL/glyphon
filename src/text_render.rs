@@ -1,4 +1,4 @@
-use cosmic_text::{CacheKey, Color, SwashCache, SwashContent, TextBuffer};
+use cosmic_text::{CacheKey, Color, SwashCache, SwashContent};
 use etagere::{size2, Allocation};
 
 use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice};
@@ -63,7 +63,7 @@ impl TextRenderer {
         queue: &Queue,
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
-        buffer: &mut TextBuffer<'a>,
+        buffer: &mut cosmic_text::Buffer<'a>,
         default_color: Color,
         cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {
@@ -204,7 +204,8 @@ impl TextRenderer {
                     },
                     aspect: TextureAspect::All,
                 },
-                &atlas.texture_pending[ub.y_min * atlas.width as usize + ub.x_min..],
+                &atlas.texture_pending
+                    [ub.y_min * atlas.width as usize + ub.x_min * NUM_ATLAS_CHANNELS..],
                 ImageDataLayout {
                     offset: 0,
                     bytes_per_row: NonZeroU32::new(atlas.width * NUM_ATLAS_CHANNELS as u32),

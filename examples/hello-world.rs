@@ -1,4 +1,4 @@
-use cosmic_text::{Attrs, Color, FontSystem, SwashCache, TextBuffer, TextMetrics};
+use cosmic_text::{Attrs, Buffer, Color, FontSystem, Metrics, SwashCache};
 use glyphon::{Resolution, TextAtlas, TextRenderer};
 use wgpu::{
     Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
@@ -68,13 +68,13 @@ async fn run() {
     }
     let mut cache = SwashCache::new(unsafe { FONT_SYSTEM.as_ref().unwrap() });
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
-    let mut buffer = TextBuffer::new(
+    let mut buffer = Buffer::new(
         unsafe { FONT_SYSTEM.as_ref().unwrap() },
-        TextMetrics::new(32, 44),
+        Metrics::new(32, 44),
     );
     buffer.set_size((width as f64 * scale_factor) as i32, (height as f64) as i32);
     buffer.set_text(include_str!("./ligature.txt"), Attrs::new());
-    buffer.shape_until_cursor();
+    buffer.shape_until_scroll();
 
     event_loop.run(move |event, _, control_flow| {
         let _ = (&instance, &adapter);

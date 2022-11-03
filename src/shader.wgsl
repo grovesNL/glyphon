@@ -64,9 +64,9 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
     vert_output.position.y *= -1.0;
 
     vert_output.color = vec4<f32>(
-        f32((color & 0xffu)),
-        f32((color & 0xff00u) >> 8u),
-        f32((color & 0xff0000u) >> 16u),
+        f32((color & 0x00ff0000u) >> 16u),
+        f32((color & 0x0000ff00u) >> 8u),
+        f32(color & 0x000000ffu),
         f32((color & 0xff000000u) >> 24u),
     ) / 255.0;
 

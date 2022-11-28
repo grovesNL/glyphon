@@ -4,12 +4,14 @@ struct VertexInput {
     @location(1) dim: u32,
     @location(2) uv: u32,
     @location(3) color: u32,
+    @location(4) content_type: u32,
 }
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) color: vec4<f32>,
     @location(1) uv: vec2<f32>,
+    @location(2) content_type: u32,
 };
 
 struct Params {
@@ -21,9 +23,12 @@ struct Params {
 var<uniform> params: Params;
 
 @group(0) @binding(1)
-var atlas_texture: texture_2d<f32>;
+var color_atlas_texture: texture_2d<f32>;
 
 @group(0) @binding(2)
+var mask_atlas_texture: texture_2d<f32>;
+
+@group(0) @binding(3)
 var atlas_sampler: sampler;
 
 @vertex
@@ -70,12 +75,37 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
         f32((color & 0xff000000u) >> 24u),
     ) / 255.0;
 
-    vert_output.uv = vec2<f32>(uv) / vec2<f32>(textureDimensions(atlas_texture).xy);
+    var dim = vec2<u32>(0);
+    switch in_vert.content_type {
+        case 0u: {
+            dim = textureDimensions(color_atlas_texture);
+            break;
+        }
+        case 1u: {
+            dim = textureDimensions(mask_atlas_texture);
+            break;
+        }
+        default: {}
+    }
+
+    vert_output.content_type = in_vert.content_type;
+
+    vert_output.uv = vec2<f32>(uv) / vec2<f32>(dim);
 
     return vert_output;
 }
 
 @fragment
 fn fs_main(in_frag: VertexOutput) -> @location(0) vec4<f32> {
-    return in_frag.color * textureSample(atlas_texture, atlas_sampler, in_frag.uv);
+    switch in_frag.content_type {
+        case 0u: {
+            return textureSampleLevel(color_atlas_texture, atlas_sampler, in_frag.uv, 0.0);
+        }
+        case 1u: {
+            return in_frag.color * textureSampleLevel(mask_atlas_texture, atlas_sampler, in_frag.uv, 0.0);
+        }
+        default: {
+            return vec4<f32>(0.0);
+        }
+    }
 }

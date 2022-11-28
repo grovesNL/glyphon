@@ -1,37 +1,32 @@
+use crate::{
+    text_render::ContentType, GlyphDetails, GlyphToRender, Params, RecentlyUsedMap, Resolution,
+};
 use cosmic_text::CacheKey;
-use etagere::{size2, BucketedAtlasAllocator};
+use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use std::{borrow::Cow, mem::size_of, num::NonZeroU64, sync::Arc};
 use wgpu::{
-    BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
-    Buffer, BufferBindingType, BufferDescriptor, BufferUsages, ColorTargetState, ColorWrites,
-    Device, Extent3d, FilterMode, FragmentState, MultisampleState, PipelineLayoutDescriptor,
-    PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType,
-    SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, Texture,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
-    TextureViewDescriptor, TextureViewDimension, VertexFormat, VertexState,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutEntry, BindingResource,
+    BindingType, BlendState, Buffer, BufferBindingType, BufferDescriptor, BufferUsages,
+    ColorTargetState, ColorWrites, Device, Extent3d, FilterMode, FragmentState, MultisampleState,
+    PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor,
+    SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
+    Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
+    TextureView, TextureViewDescriptor, TextureViewDimension, VertexFormat, VertexState,
 };
 
-use crate::{GlyphDetails, GlyphToRender, Params, RecentlyUsedMap, Resolution};
-
-pub(crate) const NUM_ATLAS_CHANNELS: usize = 4usize;
-
-/// An atlas containing a cache of rasterized glyphs that can be rendered.
-pub struct TextAtlas {
-    pub(crate) texture_pending: Vec<u8>,
-    pub(crate) texture: Texture,
-    pub(crate) packer: BucketedAtlasAllocator,
-    pub(crate) width: u32,
-    pub(crate) height: u32,
-    pub(crate) glyph_cache: RecentlyUsedMap<CacheKey, GlyphDetails>,
-    pub(crate) params: Params,
-    pub(crate) params_buffer: Buffer,
-    pub(crate) pipeline: Arc<RenderPipeline>,
-    pub(crate) bind_group: Arc<BindGroup>,
+pub(crate) struct InnerAtlas {
+    pub texture_pending: Vec<u8>,
+    pub texture: Texture,
+    pub texture_view: TextureView,
+    pub packer: BucketedAtlasAllocator,
+    pub width: u32,
+    pub height: u32,
+    pub glyph_cache: RecentlyUsedMap<CacheKey, GlyphDetails>,
+    pub num_atlas_channels: usize,
 }
 
-impl TextAtlas {
-    /// Creates a new `TextAtlas`.
-    pub fn new(device: &Device, _queue: &Queue, format: TextureFormat) -> Self {
+impl InnerAtlas {
+    fn new(device: &Device, _queue: &Queue, num_atlas_channels: usize) -> Self {
         let max_texture_dimension_2d = device.limits().max_texture_dimension_2d;
         let width = max_texture_dimension_2d;
         let height = max_texture_dimension_2d;
@@ -39,7 +34,7 @@ impl TextAtlas {
         let packer = BucketedAtlasAllocator::new(size2(width as i32, height as i32));
 
         // Create a texture to use for our atlas
-        let texture_pending = vec![0; (width * height) as usize * NUM_ATLAS_CHANNELS];
+        let texture_pending = vec![0; (width * height) as usize * num_atlas_channels];
         let texture = device.create_texture(&TextureDescriptor {
             label: Some("glyphon atlas"),
             size: Extent3d {
@@ -50,10 +45,61 @@ impl TextAtlas {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8Unorm,
+            format: match num_atlas_channels {
+                1 => TextureFormat::R8Unorm,
+                4 => TextureFormat::Rgba8Unorm,
+                _ => panic!("unexpected number of channels"),
+            },
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
         });
+
         let texture_view = texture.create_view(&TextureViewDescriptor::default());
+
+        let glyph_cache = RecentlyUsedMap::new();
+
+        Self {
+            texture_pending,
+            texture,
+            texture_view,
+            packer,
+            width,
+            height,
+            glyph_cache,
+            num_atlas_channels,
+        }
+    }
+
+    pub(crate) fn try_allocate(&mut self, width: usize, height: usize) -> Option<Allocation> {
+        let size = size2(width as i32, height as i32);
+
+        loop {
+            let allocation = self.packer.allocate(size);
+            if allocation.is_some() {
+                return allocation;
+            }
+
+            // Try to free least recently used allocation
+            let (key, value) = self.glyph_cache.pop()?;
+            self.packer
+                .deallocate(value.atlas_id.expect("cache corrupt"));
+            self.glyph_cache.remove(&key);
+        }
+    }
+}
+
+/// An atlas containing a cache of rasterized glyphs that can be rendered.
+pub struct TextAtlas {
+    pub(crate) params: Params,
+    pub(crate) params_buffer: Buffer,
+    pub(crate) pipeline: Arc<RenderPipeline>,
+    pub(crate) bind_group: Arc<BindGroup>,
+    pub(crate) color_atlas: InnerAtlas,
+    pub(crate) mask_atlas: InnerAtlas,
+}
+
+impl TextAtlas {
+    /// Creates a new `TextAtlas`.
+    pub fn new(device: &Device, queue: &Queue, format: TextureFormat) -> Self {
         let sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("glyphon sampler"),
             min_filter: FilterMode::Nearest,
@@ -63,8 +109,6 @@ impl TextAtlas {
             lod_max_clamp: 0f32,
             ..Default::default()
         });
-
-        let glyph_cache = RecentlyUsedMap::new();
 
         // Create a render pipeline to use for rendering later
         let shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -96,6 +140,11 @@ impl TextAtlas {
                     offset: size_of::<u32>() as u64 * 4,
                     shader_location: 3,
                 },
+                wgpu::VertexAttribute {
+                    format: VertexFormat::Uint32,
+                    offset: size_of::<u32>() as u64 * 5,
+                    shader_location: 4,
+                }
             ],
         }];
 
@@ -123,6 +172,16 @@ impl TextAtlas {
                 },
                 BindGroupLayoutEntry {
                     binding: 2,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: TextureViewDimension::D2,
+                        sample_type: TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 3,
                     visibility: ShaderStages::FRAGMENT,
                     ty: BindingType::Sampler(SamplerBindingType::Filtering),
                     count: None,
@@ -146,7 +205,10 @@ impl TextAtlas {
             mapped_at_creation: false,
         });
 
-        let bind_group = Arc::new(device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let color_atlas = InnerAtlas::new(device, queue, 4);
+        let mask_atlas = InnerAtlas::new(device, queue, 1);
+
+        let bind_group = Arc::new(device.create_bind_group(&BindGroupDescriptor {
             layout: &bind_group_layout,
             entries: &[
                 BindGroupEntry {
@@ -155,10 +217,14 @@ impl TextAtlas {
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: BindingResource::TextureView(&texture_view),
+                    resource: BindingResource::TextureView(&color_atlas.texture_view),
                 },
                 BindGroupEntry {
                     binding: 2,
+                    resource: BindingResource::TextureView(&mask_atlas.texture_view),
+                },
+                BindGroupEntry {
+                    binding: 3,
                     resource: BindingResource::Sampler(&sampler),
                 },
             ],
@@ -199,16 +265,38 @@ impl TextAtlas {
         }));
 
         Self {
-            texture_pending,
-            texture,
-            packer,
-            width,
-            height,
-            glyph_cache,
             params,
             params_buffer,
             pipeline,
             bind_group,
+            color_atlas,
+            mask_atlas,
+        }
+    }
+
+    pub(crate) fn contains_cached_glyph(&self, glyph: &CacheKey) -> bool {
+        self.mask_atlas.glyph_cache.contains_key(glyph)
+            || self.color_atlas.glyph_cache.contains_key(glyph)
+    }
+
+    pub(crate) fn glyph(&self, glyph: &CacheKey) -> Option<&GlyphDetails> {
+        self.mask_atlas
+            .glyph_cache
+            .get(glyph)
+            .or_else(|| self.color_atlas.glyph_cache.get(glyph))
+    }
+
+    pub(crate) fn inner_for_content(&self, content_type: ContentType) -> &InnerAtlas {
+        match content_type {
+            ContentType::Color => &self.color_atlas,
+            ContentType::Mask => &self.mask_atlas,
+        }
+    }
+
+    pub(crate) fn inner_for_content_mut(&mut self, content_type: ContentType) -> &mut InnerAtlas {
+        match content_type {
+            ContentType::Color => &mut self.color_atlas,
+            ContentType::Mask => &mut self.mask_atlas,
         }
     }
 }

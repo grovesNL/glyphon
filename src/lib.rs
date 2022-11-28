@@ -8,19 +8,24 @@ mod text_render;
 pub use error::{PrepareError, RenderError};
 use recently_used::RecentlyUsedMap;
 pub use text_atlas::TextAtlas;
+use text_render::ContentType;
 pub use text_render::TextRenderer;
 
 pub use cosmic_text;
 
-pub(crate) enum GpuCache {
-    InAtlas { x: u16, y: u16 },
+pub(crate) enum GpuCacheStatus {
+    InAtlas {
+        x: u16,
+        y: u16,
+        content_type: ContentType,
+    },
     SkipRasterization,
 }
 
 pub(crate) struct GlyphDetails {
     width: u16,
     height: u16,
-    gpu_cache: GpuCache,
+    gpu_cache: GpuCacheStatus,
     atlas_id: Option<AllocId>,
     top: i16,
     left: i16,
@@ -33,6 +38,7 @@ pub(crate) struct GlyphToRender {
     dim: [u16; 2],
     uv: [u16; 2],
     color: u32,
+    content_type: u32,
 }
 
 /// The screen resolution to use when rendering text.

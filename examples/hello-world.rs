@@ -56,7 +56,7 @@ async fn run() {
         format: swapchain_format,
         width: size.width,
         height: size.height,
-        present_mode: PresentMode::Mailbox,
+        present_mode: PresentMode::Fifo,
         alpha_mode: CompositeAlphaMode::Opaque,
     };
     surface.configure(&device, &config);

@@ -184,7 +184,7 @@ impl TextAtlas {
                 entry_point: "fs_main",
                 targets: &[Some(ColorTargetState {
                     format,
-                    blend: Some(BlendState::PREMULTIPLIED_ALPHA_BLENDING),
+                    blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::default(),
                 })],
             }),

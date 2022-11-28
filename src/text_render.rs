@@ -110,11 +110,10 @@ impl TextRenderer {
                     match image.content {
                         SwashContent::Color => {}
                         SwashContent::Mask => {
-                            // Technically only one channel is needed, but store the mask in every
-                            // for now.
+                            // Technically only one channel is needed, but store the mask only in the alpha channel for now.
                             bitmap = bitmap
                                 .iter()
-                                .flat_map(|color| iter::repeat(*color).take(NUM_ATLAS_CHANNELS))
+                                .flat_map(|color| iter::repeat(255).take(NUM_ATLAS_CHANNELS - 1).chain(iter::once(*color)))
                                 .collect();
                         }
                         SwashContent::SubpixelMask => {

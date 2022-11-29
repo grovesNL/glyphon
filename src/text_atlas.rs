@@ -74,7 +74,7 @@ impl TextAtlas {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
-                    format: VertexFormat::Uint32x2,
+                    format: VertexFormat::Sint32x2,
                     offset: 0,
                     shader_location: 0,
                 },

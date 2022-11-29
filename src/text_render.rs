@@ -196,25 +196,25 @@ impl TextRenderer {
         let mut glyphs_added = 0;
 
         for (layout, overflow) in layouts.iter() {
-            let layout = layout.borrow();
+            let layout: &Layout<C> = layout.borrow();
             let settings = layout.settings();
 
             // Note: subpixel positioning is not currently handled, so we always truncate down to
             // the nearest pixel.
-            let bounds_min_x = settings.x.trunc() as u32;
+            let bounds_min_x = settings.x.trunc();
             let bounds_max_x = settings
                 .max_width
-                .map(|w| bounds_min_x + w.trunc() as u32)
-                .unwrap_or(u32::MAX);
-            let bounds_min_y = settings.y.trunc() as u32;
+                .map(|w| bounds_min_x + w.trunc())
+                .unwrap_or(f32::MAX);
+            let bounds_min_y = settings.y.trunc();
             let bounds_max_y = settings
                 .max_height
-                .map(|h| bounds_min_y + h.trunc() as u32)
-                .unwrap_or(u32::MAX);
+                .map(|h| bounds_min_y + h.trunc())
+                .unwrap_or(f32::MAX);
 
             for glyph in layout.glyphs() {
-                let mut x = glyph.x.trunc() as u32;
-                let mut y = glyph.y.trunc() as u32;
+                let mut x = glyph.x;
+                let mut y = glyph.y;
 
                 let details = atlas.glyph_cache.get(&glyph.key).unwrap();
                 let (mut atlas_x, mut atlas_y) = match details.gpu_cache {
@@ -222,8 +222,8 @@ impl TextRenderer {
                     GpuCache::SkipRasterization => continue,
                 };
 
-                let mut width = details.width as u32;
-                let mut height = details.height as u32;
+                let mut width = details.width as f32;
+                let mut height = details.height as f32;
 
                 match overflow {
                     TextOverflow::Overflow => {}
@@ -274,7 +274,7 @@ impl TextRenderer {
 
                 glyph_vertices.extend(
                     iter::repeat(GlyphToRender {
-                        pos: [x, y],
+                        pos: [x as i32, y as i32],
                         dim: [width as u16, height as u16],
                         uv: [atlas_x, atlas_y],
                         color: [color.r, color.g, color.b, color.a],

@@ -1,6 +1,6 @@
 struct VertexInput {
     @builtin(vertex_index) vertex_idx: u32,
-    @location(0) pos: vec2<u32>,
+    @location(0) pos: vec2<i32>,
     @location(1) dim: u32,
     @location(2) uv: u32,
     @location(3) color: u32,
@@ -37,17 +37,17 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
 
     switch v {
         case 1u: {
-            pos.x += width;
+            pos.x += i32(width);
             uv.x += width;
         }
         case 2u: {
-            pos.x += width;
-            pos.y += height;
+            pos.x += i32(width);
+            pos.y += i32(height);
             uv.x += width;
             uv.y += height;
         }
         case 3u: {
-            pos.y += height;
+            pos.y += i32(height);
             uv.y += height;
         }
         default: {}

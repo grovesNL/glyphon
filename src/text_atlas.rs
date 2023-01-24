@@ -3,7 +3,12 @@ use crate::{
     Resolution,
 };
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
-use std::{borrow::Cow, mem::size_of, num::NonZeroU64, sync::Arc};
+use std::{
+    borrow::Cow,
+    mem::size_of,
+    num::{NonZeroU32, NonZeroU64},
+    sync::Arc,
+};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutEntry, BindingResource,
     BindingType, BlendState, Buffer, BufferBindingType, BufferDescriptor, BufferUsages,
@@ -100,6 +105,16 @@ pub struct TextAtlas {
 impl TextAtlas {
     /// Creates a new `TextAtlas`.
     pub fn new(device: &Device, queue: &Queue, format: TextureFormat) -> Self {
+        Self::with_sample_count(device, queue, format, NonZeroU32::new(1).unwrap())
+    }
+
+    /// Creates a new `TextAtlas` with a custom sample count.
+    pub fn with_sample_count(
+        device: &Device,
+        queue: &Queue,
+        format: TextureFormat,
+        sample_count: NonZeroU32,
+    ) -> Self {
         let sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("glyphon sampler"),
             min_filter: FilterMode::Nearest,
@@ -257,7 +272,7 @@ impl TextAtlas {
             primitive: PrimitiveState::default(),
             depth_stencil: None,
             multisample: MultisampleState {
-                count: 1,
+                count: sample_count.get(),
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },

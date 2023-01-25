@@ -102,7 +102,7 @@ fn fs_main(in_frag: VertexOutput) -> @location(0) vec4<f32> {
             return textureSampleLevel(color_atlas_texture, atlas_sampler, in_frag.uv, 0.0);
         }
         case 1u: {
-            return in_frag.color * textureSampleLevel(mask_atlas_texture, atlas_sampler, in_frag.uv, 0.0);
+            return vec4<f32>(in_frag.color.rgb, in_frag.color.a * textureSampleLevel(mask_atlas_texture, atlas_sampler, in_frag.uv, 0.0).x);
         }
         default: {
             return vec4<f32>(0.0);

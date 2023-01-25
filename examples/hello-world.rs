@@ -103,7 +103,7 @@ async fn run() {
                             width: config.width,
                             height: config.height,
                         },
-                        &mut buffer,
+                        &buffer,
                         Color::rgb(255, 255, 255),
                         &mut cache,
                     )

@@ -60,7 +60,7 @@ impl TextRenderer {
         queue: &Queue,
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
-        buffer: &mut cosmic_text::Buffer<'a>,
+        buffer: &cosmic_text::Buffer<'a>,
         default_color: Color,
         cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {

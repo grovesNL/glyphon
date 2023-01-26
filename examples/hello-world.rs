@@ -1,5 +1,5 @@
 use cosmic_text::{Attrs, Buffer, Color, Family, FontSystem, Metrics, SwashCache};
-use glyphon::{Resolution, TextAtlas, TextRenderer};
+use glyphon::{Resolution, TextArea, TextAtlas, TextBounds, TextRenderer};
 use wgpu::{
     Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
     Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor,
@@ -74,7 +74,7 @@ async fn run() {
     );
     buffer.set_size((width as f64 * scale_factor) as i32, (height as f64) as i32);
     buffer.set_text(
-        include_str!("./emoji.txt"),
+        include_str!("./emoji-zjw.txt"),
         Attrs::new().monospaced(true).family(Family::Monospace),
     );
     buffer.shape_until_scroll();
@@ -103,7 +103,15 @@ async fn run() {
                             width: config.width,
                             height: config.height,
                         },
-                        &buffer,
+                        &[TextArea {
+                            buffer: &buffer,
+                            bounds: TextBounds {
+                                left: 10,
+                                top: 10,
+                                right: 500,
+                                bottom: 50,
+                            },
+                        }],
                         Color::rgb(255, 255, 255),
                         &mut cache,
                     )

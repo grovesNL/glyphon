@@ -1,5 +1,3 @@
-use etagere::AllocId;
-
 mod error;
 mod recently_used;
 mod text_atlas;
@@ -12,6 +10,7 @@ use text_render::ContentType;
 pub use text_render::TextRenderer;
 
 pub use cosmic_text;
+use etagere::AllocId;
 
 pub(crate) enum GpuCacheStatus {
     InAtlas {
@@ -58,11 +57,35 @@ pub(crate) struct Params {
     _pad: [u32; 2],
 }
 
-/// Controls the overflow behavior of any glyphs that are outside of the layout bounds.
-pub enum TextOverflow {
-    /// Glyphs can overflow the bounds.
-    Overflow,
-    /// Hide any glyphs outside the bounds. If a glyph is partially outside the bounds, it will be
-    /// clipped to the bounds.
-    Hide,
+/// Controls the visible area of the text. Any text outside of the visible area will be clipped.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TextBounds {
+    /// The position of the left edge of the visible area.
+    pub left: i32,
+    /// The position of the top edge of the visible area.
+    pub top: i32,
+    /// The position of the right edge of the visible area.
+    pub right: i32,
+    /// The position of the bottom edge of the visible area.
+    pub bottom: i32,
+}
+
+/// The default visible area doesn't clip any text.
+impl Default for TextBounds {
+    fn default() -> Self {
+        Self {
+            left: i32::MIN,
+            top: i32::MIN,
+            right: i32::MAX,
+            bottom: i32::MAX,
+        }
+    }
+}
+
+/// A text area containing text to be rendered along with its overflow behavior.
+pub struct TextArea<'a> {
+    /// The buffer containing the text to be rendered.
+    pub buffer: &'a cosmic_text::Buffer<'a>,
+    /// The bounds of the text area.
+    pub bounds: TextBounds,
 }

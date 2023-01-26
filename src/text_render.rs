@@ -1,6 +1,6 @@
 use crate::{
     GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError, RenderError, Resolution,
-    TextAtlas, TextOverflow,
+    TextArea, TextAtlas,
 };
 use cosmic_text::{CacheKey, Color, SwashCache, SwashContent};
 use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice};
@@ -53,14 +53,14 @@ impl TextRenderer {
         }
     }
 
-    /// Prepares all of the provided layouts for rendering.
+    /// Prepares all of the provided text areas for rendering.
     pub fn prepare<'a>(
         &mut self,
         device: &Device,
         queue: &Queue,
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
-        buffer: &cosmic_text::Buffer<'a>,
+        text_areas: &[TextArea<'a>],
         default_color: Color,
         cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {
@@ -97,10 +97,8 @@ impl TextRenderer {
 
         self.glyphs_in_use.clear();
 
-        let mut buffers = [(buffer, TextOverflow::Hide)];
-
-        for (buffer, _) in buffers.iter_mut() {
-            for run in buffer.layout_runs() {
+        for text_area in text_areas.iter() {
+            for run in text_area.buffer.layout_runs() {
                 for glyph in run.glyphs.iter() {
                     self.glyphs_in_use.insert(glyph.cache_key);
 
@@ -240,15 +238,10 @@ impl TextRenderer {
         let mut glyph_indices: Vec<u32> = Vec::new();
         let mut glyphs_added = 0;
 
-        for (buffer, overflow) in buffers.iter() {
+        for text_area in text_areas.iter() {
             // Note: subpixel positioning is not currently handled, so we always truncate down to
-            // the nearest pixel.
-            let bounds_min_x = i32::MIN;
-            let bounds_max_x = i32::MAX;
-            let bounds_min_y = i32::MIN;
-            let bounds_max_y = i32::MAX;
-
-            for run in buffer.layout_runs() {
+            // the nearest pixel whenever necessary.
+            for run in text_area.buffer.layout_runs() {
                 let line_y = run.line_y;
 
                 for glyph in run.glyphs.iter() {
@@ -270,49 +263,49 @@ impl TextRenderer {
                     let mut width = details.width as i32;
                     let mut height = details.height as i32;
 
-                    match overflow {
-                        TextOverflow::Overflow => {}
-                        TextOverflow::Hide => {
-                            // Starts beyond right edge or ends beyond left edge
-                            let max_x = x + width;
-                            if x > bounds_max_x || max_x < bounds_min_x {
-                                continue;
-                            }
+                    let bounds_min_x = text_area.bounds.left.max(0);
+                    let bounds_min_y = text_area.bounds.top.max(0);
+                    let bounds_max_x = text_area.bounds.right.min(screen_resolution.width as i32);
+                    let bounds_max_y = text_area.bounds.bottom.min(screen_resolution.height as i32);
 
-                            // Starts beyond bottom edge or ends beyond top edge
-                            let max_y = y + height;
-                            if y > bounds_max_y || max_y < bounds_min_y {
-                                continue;
-                            }
+                    // Starts beyond right edge or ends beyond left edge
+                    let max_x = x + width;
+                    if x > bounds_max_x || max_x < bounds_min_x {
+                        continue;
+                    }
 
-                            // Clip left ege
-                            if x < bounds_min_x {
-                                let right_shift = bounds_min_x - x;
+                    // Starts beyond bottom edge or ends beyond top edge
+                    let max_y = y + height;
+                    if y > bounds_max_y || max_y < bounds_min_y {
+                        continue;
+                    }
 
-                                x = bounds_min_x;
-                                width = max_x - bounds_min_x;
-                                atlas_x += right_shift as u16;
-                            }
+                    // Clip left ege
+                    if x < bounds_min_x {
+                        let right_shift = bounds_min_x - x;
 
-                            // Clip right edge
-                            if x + width > bounds_max_x {
-                                width = bounds_max_x - x;
-                            }
+                        x = bounds_min_x;
+                        width = max_x - bounds_min_x;
+                        atlas_x += right_shift as u16;
+                    }
 
-                            // Clip top edge
-                            if y < bounds_min_y {
-                                let bottom_shift = bounds_min_y - y;
+                    // Clip right edge
+                    if x + width > bounds_max_x {
+                        width = bounds_max_x - x;
+                    }
 
-                                y = bounds_min_y;
-                                height = max_y - bounds_min_y;
-                                atlas_y += bottom_shift as u16;
-                            }
+                    // Clip top edge
+                    if y < bounds_min_y {
+                        let bottom_shift = bounds_min_y - y;
 
-                            // Clip bottom edge
-                            if y + height > bounds_max_y {
-                                height = bounds_max_y - y;
-                            }
-                        }
+                        y = bounds_min_y;
+                        height = max_y - bounds_min_y;
+                        atlas_y += bottom_shift as u16;
+                    }
+
+                    // Clip bottom edge
+                    if y + height > bounds_max_y {
+                        height = bounds_max_y - y;
                     }
 
                     glyph_vertices.extend(

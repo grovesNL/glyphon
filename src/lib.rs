@@ -86,6 +86,11 @@ impl Default for TextBounds {
 pub struct TextArea<'a> {
     /// The buffer containing the text to be rendered.
     pub buffer: &'a cosmic_text::Buffer<'a>,
-    /// The bounds of the text area.
+    /// The left edge of the buffer.
+    pub left: i32,
+    /// The top edge of the buffer.
+    pub top: i32,
+    /// The visible bounds of the text area. This is used to clip the text and doesn't have to
+    /// match the `left` and `top` values.
     pub bounds: TextBounds,
 }

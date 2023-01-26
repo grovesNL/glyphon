@@ -70,13 +70,14 @@ async fn run() {
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
     let mut buffer = Buffer::new(
         unsafe { FONT_SYSTEM.as_ref().unwrap() },
-        Metrics::new(14, 20),
+        Metrics::new(30, 42),
     );
-    buffer.set_size((width as f64 * scale_factor) as i32, (height as f64) as i32);
-    buffer.set_text(
-        include_str!("./emoji-zjw.txt"),
-        Attrs::new().monospaced(true).family(Family::Monospace),
-    );
+
+    let physical_width = (width as f64 * scale_factor) as i32;
+    let physical_height = (height as f64 * scale_factor) as i32;
+
+    buffer.set_size(physical_width, physical_height);
+    buffer.set_text("Hello world! 👋\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif));
     buffer.shape_until_scroll();
 
     event_loop.run(move |event, _, control_flow| {
@@ -105,11 +106,13 @@ async fn run() {
                         },
                         &[TextArea {
                             buffer: &buffer,
+                            left: 10,
+                            top: 10,
                             bounds: TextBounds {
-                                left: 10,
-                                top: 10,
-                                right: 500,
-                                bottom: 50,
+                                left: 0,
+                                top: 0,
+                                right: 600,
+                                bottom: 160,
                             },
                         }],
                         Color::rgb(255, 255, 255),

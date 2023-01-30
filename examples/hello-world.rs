@@ -1,5 +1,7 @@
-use cosmic_text::{Attrs, Buffer, Color, Family, FontSystem, Metrics, SwashCache};
-use glyphon::{Resolution, TextArea, TextAtlas, TextBounds, TextRenderer};
+use glyphon::{
+    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution, SwashCache, TextArea, TextAtlas,
+    TextBounds, TextRenderer,
+};
 use wgpu::{
     Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
     Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor,

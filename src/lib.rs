@@ -9,7 +9,15 @@ pub use text_atlas::TextAtlas;
 use text_render::ContentType;
 pub use text_render::TextRenderer;
 
-pub use cosmic_text;
+// Re-export all top-level types from `cosmic-text` for convenience.
+pub use cosmic_text::{
+    self, fontdb, Action, Affinity, Attrs, AttrsList, AttrsOwned, Buffer, BufferLine, CacheKey,
+    Color, Command, Cursor, Edit, Editor, Family, FamilyOwned, Font, FontMatches, FontSystem,
+    LayoutCursor, LayoutGlyph, LayoutLine, LayoutRun, LayoutRunIter, Metrics, ShapeGlyph,
+    ShapeLine, ShapeSpan, ShapeWord, Stretch, Style, SubpixelBin, SwashCache, SwashContent,
+    SwashImage, Weight, Wrap,
+};
+
 use etagere::AllocId;
 
 pub(crate) enum GpuCacheStatus {
@@ -85,7 +93,7 @@ impl Default for TextBounds {
 /// A text area containing text to be rendered along with its overflow behavior.
 pub struct TextArea<'a, 'b: 'a> {
     /// The buffer containing the text to be rendered.
-    pub buffer: &'a cosmic_text::Buffer<'b>,
+    pub buffer: &'a Buffer<'b>,
     /// The left edge of the buffer.
     pub left: i32,
     /// The top edge of the buffer.

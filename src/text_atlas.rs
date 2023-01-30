@@ -1,7 +1,7 @@
 use crate::{
-    text_render::ContentType, GlyphDetails, GlyphToRender, Params, RecentlyUsedMap, Resolution,
+    text_render::ContentType, CacheKey, GlyphDetails, GlyphToRender, Params, RecentlyUsedMap,
+    Resolution,
 };
-use cosmic_text::CacheKey;
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use std::{borrow::Cow, mem::size_of, num::NonZeroU64, sync::Arc};
 use wgpu::{
@@ -144,7 +144,7 @@ impl TextAtlas {
                     format: VertexFormat::Uint32,
                     offset: size_of::<u32>() as u64 * 5,
                     shader_location: 4,
-                }
+                },
             ],
         }];
 

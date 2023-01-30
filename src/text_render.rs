@@ -54,13 +54,13 @@ impl TextRenderer {
     }
 
     /// Prepares all of the provided text areas for rendering.
-    pub fn prepare<'a>(
+    pub fn prepare<'a, 'b: 'a>(
         &mut self,
         device: &Device,
         queue: &Queue,
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
-        text_areas: &[TextArea<'a>],
+        text_areas: &[TextArea<'a, 'b>],
         default_color: Color,
         cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {

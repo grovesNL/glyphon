@@ -83,9 +83,9 @@ impl Default for TextBounds {
 }
 
 /// A text area containing text to be rendered along with its overflow behavior.
-pub struct TextArea<'a> {
+pub struct TextArea<'a, 'b: 'a> {
     /// The buffer containing the text to be rendered.
-    pub buffer: &'a cosmic_text::Buffer<'a>,
+    pub buffer: &'a cosmic_text::Buffer<'b>,
     /// The left edge of the buffer.
     pub left: i32,
     /// The top edge of the buffer.

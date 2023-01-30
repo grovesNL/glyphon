@@ -1,8 +1,7 @@
 use crate::{
-    GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError, RenderError, Resolution,
-    TextArea, TextAtlas,
+    CacheKey, Color, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError,
+    RenderError, Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
 };
-use cosmic_text::{CacheKey, Color, SwashCache, SwashContent};
 use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, Device, Extent3d, ImageCopyTexture, ImageDataLayout,

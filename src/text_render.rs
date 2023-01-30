@@ -309,7 +309,7 @@ impl TextRenderer {
 
                     glyph_vertices.extend(
                         iter::repeat(GlyphToRender {
-                            pos: [x as i32, y as i32],
+                            pos: [x, y],
                             dim: [width as u16, height as u16],
                             uv: [atlas_x, atlas_y],
                             color: color.0,

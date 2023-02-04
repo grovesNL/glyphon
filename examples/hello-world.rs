@@ -49,8 +49,7 @@ async fn run() {
         .await
         .unwrap();
     let surface = unsafe { instance.create_surface(&window) };
-    // TODO: handle srgb
-    let swapchain_format = TextureFormat::Bgra8Unorm;
+    let swapchain_format = TextureFormat::Bgra8UnormSrgb;
     let mut config = SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
         format: swapchain_format,

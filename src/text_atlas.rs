@@ -46,7 +46,7 @@ impl InnerAtlas {
             dimension: TextureDimension::D2,
             format: match num_atlas_channels {
                 1 => TextureFormat::R8Unorm,
-                4 => TextureFormat::Rgba8Unorm,
+                4 => TextureFormat::Rgba8UnormSrgb,
                 _ => panic!("unexpected number of channels"),
             },
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,

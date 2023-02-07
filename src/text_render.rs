@@ -376,7 +376,7 @@ impl TextRenderer {
 
     /// Renders all layouts that were previously provided to `prepare`.
     pub fn render<'pass>(
-        &'pass mut self,
+        &'pass self,
         atlas: &'pass TextAtlas,
         pass: &mut RenderPass<'pass>,
     ) -> Result<(), RenderError> {

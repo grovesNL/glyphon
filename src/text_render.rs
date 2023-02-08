@@ -87,23 +87,6 @@ impl TextRenderer {
             });
         }
 
-        struct UploadBounds {
-            x_min: usize,
-            x_max: usize,
-            y_min: usize,
-            y_max: usize,
-        }
-
-        struct BoundsPerAtlas {
-            color: Option<UploadBounds>,
-            mask: Option<UploadBounds>,
-        }
-
-        let mut upload_bounds_per_atlas = BoundsPerAtlas {
-            color: None,
-            mask: None,
-        };
-
         self.glyphs_in_use.clear();
 
         for text_area in text_areas.iter() {
@@ -146,41 +129,32 @@ impl TextRenderer {
                             None => return Err(PrepareError::AtlasFull),
                         };
                         let atlas_min = allocation.rectangle.min;
-                        let atlas_max = allocation.rectangle.max;
 
-                        for row in 0..height {
-                            let y_offset = atlas_min.y as usize;
-                            let x_offset =
-                                (y_offset + row) * inner.width as usize + atlas_min.x as usize;
-                            let num_atlas_channels = inner.num_atlas_channels;
-                            let bitmap_row = &image.data[row * width * num_atlas_channels
-                                ..(row + 1) * width * num_atlas_channels];
-                            inner.texture_pending[x_offset * num_atlas_channels
-                                ..(x_offset + width) * num_atlas_channels]
-                                .copy_from_slice(bitmap_row);
-                        }
-
-                        let upload_bounds = match content_type {
-                            ContentType::Color => &mut upload_bounds_per_atlas.color,
-                            ContentType::Mask => &mut upload_bounds_per_atlas.mask,
-                        };
-
-                        match upload_bounds.as_mut() {
-                            Some(ub) => {
-                                ub.x_min = ub.x_min.min(atlas_min.x as usize);
-                                ub.x_max = ub.x_max.max(atlas_max.x as usize);
-                                ub.y_min = ub.y_min.min(atlas_min.y as usize);
-                                ub.y_max = ub.y_max.max(atlas_max.y as usize);
-                            }
-                            None => {
-                                *upload_bounds = Some(UploadBounds {
-                                    x_min: atlas_min.x as usize,
-                                    x_max: atlas_max.x as usize,
-                                    y_min: atlas_min.y as usize,
-                                    y_max: atlas_max.y as usize,
-                                });
-                            }
-                        }
+                        queue.write_texture(
+                            ImageCopyTexture {
+                                texture: &inner.texture,
+                                mip_level: 0,
+                                origin: Origin3d {
+                                    x: atlas_min.x as u32,
+                                    y: atlas_min.y as u32,
+                                    z: 0,
+                                },
+                                aspect: TextureAspect::All,
+                            },
+                            &image.data,
+                            ImageDataLayout {
+                                offset: 0,
+                                bytes_per_row: NonZeroU32::new(
+                                    width as u32 * inner.num_atlas_channels as u32,
+                                ),
+                                rows_per_image: None,
+                            },
+                            Extent3d {
+                                width: width as u32,
+                                height: height as u32,
+                                depth_or_array_layers: 1,
+                            },
+                        );
 
                         (
                             GpuCacheStatus::InAtlas {
@@ -210,40 +184,6 @@ impl TextRenderer {
                         );
                     }
                 }
-            }
-        }
-
-        for (content_type, bounds) in [
-            (ContentType::Color, upload_bounds_per_atlas.color),
-            (ContentType::Mask, upload_bounds_per_atlas.mask),
-        ] {
-            if let Some(ub) = bounds {
-                let inner = atlas.inner_for_content(content_type);
-                let num_atlas_channels = inner.num_atlas_channels;
-                queue.write_texture(
-                    ImageCopyTexture {
-                        texture: &inner.texture,
-                        mip_level: 0,
-                        origin: Origin3d {
-                            x: ub.x_min as u32,
-                            y: ub.y_min as u32,
-                            z: 0,
-                        },
-                        aspect: TextureAspect::All,
-                    },
-                    &inner.texture_pending
-                        [ub.y_min * inner.width as usize + ub.x_min * num_atlas_channels..],
-                    ImageDataLayout {
-                        offset: 0,
-                        bytes_per_row: NonZeroU32::new(inner.width * num_atlas_channels as u32),
-                        rows_per_image: NonZeroU32::new(inner.height),
-                    },
-                    Extent3d {
-                        width: (ub.x_max - ub.x_min) as u32,
-                        height: (ub.y_max - ub.y_min) as u32,
-                        depth_or_array_layers: 1,
-                    },
-                );
             }
         }
 

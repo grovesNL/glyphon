@@ -13,8 +13,8 @@ use wgpu::{
     TextureViewDescriptor, TextureViewDimension, VertexFormat, VertexState,
 };
 
+#[allow(dead_code)]
 pub(crate) struct InnerAtlas {
-    pub texture_pending: Vec<u8>,
     pub texture: Texture,
     pub texture_view: TextureView,
     pub packer: BucketedAtlasAllocator,
@@ -33,7 +33,6 @@ impl InnerAtlas {
         let packer = BucketedAtlasAllocator::new(size2(width as i32, height as i32));
 
         // Create a texture to use for our atlas
-        let texture_pending = vec![0; (width * height) as usize * num_atlas_channels];
         let texture = device.create_texture(&TextureDescriptor {
             label: Some("glyphon atlas"),
             size: Extent3d {
@@ -57,7 +56,6 @@ impl InnerAtlas {
         let glyph_cache = LruCache::unbounded();
 
         Self {
-            texture_pending,
             texture,
             texture_view,
             packer,
@@ -271,13 +269,6 @@ impl TextAtlas {
             .glyph_cache
             .peek(glyph)
             .or_else(|| self.color_atlas.glyph_cache.peek(glyph))
-    }
-
-    pub(crate) fn inner_for_content(&self, content_type: ContentType) -> &InnerAtlas {
-        match content_type {
-            ContentType::Color => &self.color_atlas,
-            ContentType::Mask => &self.mask_atlas,
-        }
     }
 
     pub(crate) fn inner_for_content_mut(&mut self, content_type: ContentType) -> &mut InnerAtlas {

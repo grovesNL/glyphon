@@ -11,6 +11,7 @@ license = "MIT OR Apache-2.0 OR Zlib"
 wgpu = "0.14.0"
 etagere = "0.2.6"
 cosmic-text = { git = "https://github.com/pop-os/cosmic-text", rev = "a5903bb", features = ["std", "swash"] }
+lru = "0.9"
 
 [dev-dependencies]
 winit = "0.27.0"

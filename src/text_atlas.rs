@@ -1,8 +1,6 @@
-use crate::{
-    text_render::ContentType, CacheKey, GlyphDetails, GlyphToRender, Params, RecentlyUsedMap,
-    Resolution,
-};
+use crate::{text_render::ContentType, CacheKey, GlyphDetails, GlyphToRender, Params, Resolution};
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
+use lru::LruCache;
 use std::{borrow::Cow, mem::size_of, num::NonZeroU64, sync::Arc};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutEntry, BindingResource,
@@ -21,7 +19,7 @@ pub(crate) struct InnerAtlas {
     pub packer: BucketedAtlasAllocator,
     pub width: u32,
     pub height: u32,
-    pub glyph_cache: RecentlyUsedMap<CacheKey, GlyphDetails>,
+    pub glyph_cache: LruCache<CacheKey, GlyphDetails>,
     pub num_atlas_channels: usize,
 }
 
@@ -55,7 +53,7 @@ impl InnerAtlas {
 
         let texture_view = texture.create_view(&TextureViewDescriptor::default());
 
-        let glyph_cache = RecentlyUsedMap::new();
+        let glyph_cache = LruCache::unbounded();
 
         Self {
             texture_pending,
@@ -79,10 +77,9 @@ impl InnerAtlas {
             }
 
             // Try to free least recently used allocation
-            let (key, value) = self.glyph_cache.pop()?;
+            let (_, value) = self.glyph_cache.pop_lru()?;
             self.packer
                 .deallocate(value.atlas_id.expect("cache corrupt"));
-            self.glyph_cache.remove(&key);
         }
     }
 }
@@ -275,15 +272,14 @@ impl TextAtlas {
     }
 
     pub(crate) fn contains_cached_glyph(&self, glyph: &CacheKey) -> bool {
-        self.mask_atlas.glyph_cache.contains_key(glyph)
-            || self.color_atlas.glyph_cache.contains_key(glyph)
+        self.mask_atlas.glyph_cache.contains(glyph) || self.color_atlas.glyph_cache.contains(glyph)
     }
 
     pub(crate) fn glyph(&self, glyph: &CacheKey) -> Option<&GlyphDetails> {
         self.mask_atlas
             .glyph_cache
-            .get(glyph)
-            .or_else(|| self.color_atlas.glyph_cache.get(glyph))
+            .peek(glyph)
+            .or_else(|| self.color_atlas.glyph_cache.peek(glyph))
     }
 
     pub(crate) fn inner_for_content(&self, content_type: ContentType) -> &InnerAtlas {

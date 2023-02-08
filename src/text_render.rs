@@ -101,9 +101,13 @@ impl TextRenderer {
                 for glyph in run.glyphs.iter() {
                     self.glyphs_in_use.insert(glyph.cache_key);
 
-                    let already_on_gpu = atlas.contains_cached_glyph(&glyph.cache_key);
+                    if atlas.mask_atlas.glyph_cache.contains(&glyph.cache_key) {
+                        atlas.mask_atlas.glyph_cache.promote(&glyph.cache_key);
+                        continue;
+                    }
 
-                    if already_on_gpu {
+                    if atlas.color_atlas.glyph_cache.contains(&glyph.cache_key) {
+                        atlas.color_atlas.glyph_cache.promote(&glyph.cache_key);
                         continue;
                     }
 
@@ -182,8 +186,8 @@ impl TextRenderer {
                         (GpuCacheStatus::SkipRasterization, None, inner)
                     };
 
-                    if !inner.glyph_cache.contains_key(&glyph.cache_key) {
-                        inner.glyph_cache.insert(
+                    if !inner.glyph_cache.contains(&glyph.cache_key) {
+                        inner.glyph_cache.put(
                             glyph.cache_key,
                             GlyphDetails {
                                 width: width as u16,

@@ -1,10 +1,8 @@
 mod error;
-mod recently_used;
 mod text_atlas;
 mod text_render;
 
 pub use error::{PrepareError, RenderError};
-use recently_used::RecentlyUsedMap;
 pub use text_atlas::TextAtlas;
 use text_render::ContentType;
 pub use text_render::TextRenderer;

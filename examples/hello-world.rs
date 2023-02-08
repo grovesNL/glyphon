@@ -140,6 +140,8 @@ async fn run() {
 
                 queue.submit(Some(encoder.finish()));
                 frame.present();
+
+                atlas.trim();
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,

@@ -1,3 +1,4 @@
+use crate::ContentType;
 use std::{
     error::Error,
     fmt::{self, Display, Formatter},
@@ -6,7 +7,7 @@ use std::{
 /// An error that occurred while preparing text for rendering.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrepareError {
-    AtlasFull,
+    AtlasFull(ContentType),
 }
 
 impl Display for PrepareError {

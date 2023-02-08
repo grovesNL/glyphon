@@ -1,8 +1,8 @@
 use crate::{
-    CacheKey, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError,
-    RenderError, Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
+    FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError, RenderError,
+    Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
 };
-use std::{collections::HashSet, iter, mem::size_of, slice, sync::Arc};
+use std::{iter, mem::size_of, slice, sync::Arc};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
     ImageDataLayout, IndexFormat, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline,
@@ -16,7 +16,6 @@ pub struct TextRenderer {
     index_buffer: Buffer,
     index_buffer_size: u64,
     vertices_to_render: u32,
-    glyphs_in_use: HashSet<CacheKey>,
     screen_resolution: Resolution,
     pipeline: Arc<RenderPipeline>,
 }
@@ -53,7 +52,6 @@ impl TextRenderer {
             index_buffer,
             index_buffer_size,
             vertices_to_render: 0,
-            glyphs_in_use: HashSet::new(),
             screen_resolution: Resolution {
                 width: 0,
                 height: 0,
@@ -88,20 +86,16 @@ impl TextRenderer {
             });
         }
 
-        self.glyphs_in_use.clear();
-
         for text_area in text_areas.iter() {
             for run in text_area.buffer.layout_runs() {
                 for glyph in run.glyphs.iter() {
-                    self.glyphs_in_use.insert(glyph.cache_key);
-
                     if atlas.mask_atlas.glyph_cache.contains(&glyph.cache_key) {
-                        atlas.mask_atlas.glyph_cache.promote(&glyph.cache_key);
+                        atlas.mask_atlas.promote(glyph.cache_key);
                         continue;
                     }
 
                     if atlas.color_atlas.glyph_cache.contains(&glyph.cache_key) {
-                        atlas.color_atlas.glyph_cache.promote(&glyph.cache_key);
+                        atlas.color_atlas.promote(glyph.cache_key);
                         continue;
                     }
 
@@ -129,7 +123,9 @@ impl TextRenderer {
                         // Find a position in the packer
                         let allocation = match inner.try_allocate(width, height) {
                             Some(a) => a,
-                            None => return Err(PrepareError::AtlasFull),
+                            None => {
+                                return Err(PrepareError::AtlasFull(content_type));
+                            }
                         };
                         let atlas_min = allocation.rectangle.min;
 
@@ -171,19 +167,17 @@ impl TextRenderer {
                         (GpuCacheStatus::SkipRasterization, None, inner)
                     };
 
-                    if !inner.glyph_cache.contains(&glyph.cache_key) {
-                        inner.glyph_cache.put(
-                            glyph.cache_key,
-                            GlyphDetails {
-                                width: width as u16,
-                                height: height as u16,
-                                gpu_cache,
-                                atlas_id,
-                                top: image.placement.top as i16,
-                                left: image.placement.left as i16,
-                            },
-                        );
-                    }
+                    inner.put(
+                        glyph.cache_key,
+                        GlyphDetails {
+                            width: width as u16,
+                            height: height as u16,
+                            gpu_cache,
+                            atlas_id,
+                            top: image.placement.top as i16,
+                            left: image.placement.left as i16,
+                        },
+                    );
                 }
             }
         }
@@ -383,13 +377,6 @@ impl TextRenderer {
         }
 
         {
-            // Validate that glyphs haven't been evicted from cache since `prepare`
-            for glyph in self.glyphs_in_use.iter() {
-                if !atlas.contains_cached_glyph(glyph) {
-                    return Err(RenderError::RemovedFromAtlas);
-                }
-            }
-
             // Validate that screen resolution hasn't changed since `prepare`
             if self.screen_resolution != atlas.params.screen_resolution {
                 return Err(RenderError::ScreenResolutionChanged);
@@ -407,8 +394,8 @@ impl TextRenderer {
 }
 
 #[repr(u32)]
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub(crate) enum ContentType {
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ContentType {
     Color = 0,
     Mask = 1,
 }

@@ -5,10 +5,11 @@ struct VertexInput {
     @location(2) uv: u32,
     @location(3) color: u32,
     @location(4) content_type: u32,
+    @location(5) depth: f32,
 }
 
 struct VertexOutput {
-    @builtin(position) position: vec4<f32>,
+    @invariant @builtin(position) position: vec4<f32>,
     @location(0) color: vec4<f32>,
     @location(1) uv: vec2<f32>,
     @location(2) content_type: u32,
@@ -62,7 +63,7 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
 
     vert_output.position = vec4<f32>(
         2.0 * vec2<f32>(pos) / vec2<f32>(params.screen_resolution) - 1.0,
-        0.0,
+        in_vert.depth,
         1.0,
     );
 

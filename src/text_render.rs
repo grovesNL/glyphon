@@ -63,7 +63,7 @@ impl TextRenderer {
     }
 
     /// Prepares all of the provided text areas for rendering.
-    pub fn prepare<'a, 'b: 'a>(
+    pub fn prepare_with_depth<'a, 'b: 'a>(
         &mut self,
         device: &Device,
         queue: &Queue,
@@ -72,6 +72,7 @@ impl TextRenderer {
         text_areas: &[TextArea<'a, 'b>],
         default_color: Color,
         cache: &mut SwashCache,
+        mut metadata_to_depth: impl FnMut(usize) -> f32,
     ) -> Result<(), PrepareError> {
         self.screen_resolution = screen_resolution;
 
@@ -258,11 +259,6 @@ impl TextRenderer {
                 let line_y = run.line_y;
 
                 for glyph in run.glyphs.iter() {
-                    let color = match glyph.color_opt {
-                        Some(some) => some,
-                        None => default_color,
-                    };
-
                     let details = atlas.glyph(&glyph.cache_key).unwrap();
 
                     let mut x = glyph.x_int + details.left as i32 + text_area.left;
@@ -321,6 +317,13 @@ impl TextRenderer {
                         height = bounds_max_y - y;
                     }
 
+                    let color = match glyph.color_opt {
+                        Some(some) => some,
+                        None => default_color,
+                    };
+
+                    let depth = metadata_to_depth(glyph.metadata);
+
                     glyph_vertices.extend(
                         iter::repeat(GlyphToRender {
                             pos: [x, y],
@@ -328,6 +331,7 @@ impl TextRenderer {
                             uv: [atlas_x, atlas_y],
                             color: color.0,
                             content_type: content_type as u32,
+                            depth,
                         })
                         .take(4),
                     );
@@ -406,6 +410,28 @@ impl TextRenderer {
         Ok(())
     }
 
+    pub fn prepare<'a, 'b: 'a>(
+        &mut self,
+        device: &Device,
+        queue: &Queue,
+        atlas: &mut TextAtlas,
+        screen_resolution: Resolution,
+        text_areas: &[TextArea<'a, 'b>],
+        default_color: Color,
+        cache: &mut SwashCache,
+    ) -> Result<(), PrepareError> {
+        self.prepare_with_depth(
+            device,
+            queue,
+            atlas,
+            screen_resolution,
+            text_areas,
+            default_color,
+            cache,
+            zero_depth,
+        )
+    }
+
     /// Renders all layouts that were previously provided to `prepare`.
     pub fn render<'pass>(
         &'pass mut self,
@@ -468,4 +494,8 @@ fn create_oversized_buffer(
     buffer.slice(..).get_mapped_range_mut()[..contents.len()].copy_from_slice(contents);
     buffer.unmap();
     (buffer, size)
+}
+
+fn zero_depth(_: usize) -> f32 {
+    0f32
 }

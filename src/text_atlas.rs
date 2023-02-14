@@ -151,6 +151,11 @@ impl TextAtlas {
                     offset: size_of::<u32>() as u64 * 5,
                     shader_location: 4,
                 },
+                wgpu::VertexAttribute {
+                    format: VertexFormat::Float32,
+                    offset: size_of::<u32>() as u64 * 6,
+                    shader_location: 5,
+                },
             ],
         }];
 

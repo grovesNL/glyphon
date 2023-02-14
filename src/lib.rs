@@ -44,6 +44,7 @@ pub(crate) struct GlyphToRender {
     uv: [u16; 2],
     color: u32,
     content_type: u32,
+    depth: f32,
 }
 
 /// The screen resolution to use when rendering text.

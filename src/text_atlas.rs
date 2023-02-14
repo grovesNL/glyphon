@@ -5,11 +5,12 @@ use std::{borrow::Cow, mem::size_of, num::NonZeroU64, sync::Arc};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutEntry, BindingResource,
     BindingType, BlendState, Buffer, BufferBindingType, BufferDescriptor, BufferUsages,
-    ColorTargetState, ColorWrites, Device, Extent3d, FilterMode, FragmentState, MultisampleState,
-    PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor,
-    SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
-    Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
-    TextureView, TextureViewDescriptor, TextureViewDimension, VertexFormat, VertexState,
+    ColorTargetState, ColorWrites, DepthStencilState, Device, Extent3d, FilterMode, FragmentState,
+    MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState, Queue,
+    RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderModule,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, Texture, TextureDescriptor,
+    TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView,
+    TextureViewDescriptor, TextureViewDimension, VertexFormat, VertexState,
 };
 
 pub(crate) struct InnerAtlas {
@@ -88,10 +89,18 @@ impl InnerAtlas {
 pub struct TextAtlas {
     pub(crate) params: Params,
     pub(crate) params_buffer: Buffer,
-    pub(crate) pipeline: Arc<RenderPipeline>,
+    pub(crate) cached_pipelines: Vec<(
+        MultisampleState,
+        Option<DepthStencilState>,
+        Arc<RenderPipeline>,
+    )>,
     pub(crate) bind_group: Arc<BindGroup>,
     pub(crate) color_atlas: InnerAtlas,
     pub(crate) mask_atlas: InnerAtlas,
+    pub(crate) pipeline_layout: PipelineLayout,
+    pub(crate) shader: ShaderModule,
+    pub(crate) vertex_buffers: [wgpu::VertexBufferLayout<'static>; 1],
+    pub(crate) format: TextureFormat,
 }
 
 impl TextAtlas {
@@ -234,40 +243,17 @@ impl TextAtlas {
             push_constant_ranges: &[],
         });
 
-        let pipeline = Arc::new(device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("glyphon pipeline"),
-            layout: Some(&pipeline_layout),
-            vertex: VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &vertex_buffers,
-            },
-            fragment: Some(FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(ColorTargetState {
-                    format,
-                    blend: Some(BlendState::ALPHA_BLENDING),
-                    write_mask: ColorWrites::default(),
-                })],
-            }),
-            primitive: PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-        }));
-
         Self {
             params,
             params_buffer,
-            pipeline,
+            cached_pipelines: Vec::new(),
             bind_group,
             color_atlas,
             mask_atlas,
+            pipeline_layout,
+            shader,
+            vertex_buffers,
+            format,
         }
     }
 
@@ -294,5 +280,45 @@ impl TextAtlas {
             ContentType::Color => &mut self.color_atlas,
             ContentType::Mask => &mut self.mask_atlas,
         }
+    }
+
+    pub(crate) fn get_or_create_pipeline(
+        &mut self,
+        device: &Device,
+        multisample: MultisampleState,
+        depth_stencil: Option<DepthStencilState>,
+    ) -> Arc<RenderPipeline> {
+        self.cached_pipelines
+            .iter()
+            .find(|(ms, ds, _)| ms == &multisample && ds == &depth_stencil)
+            .map(|(_, _, p)| Arc::clone(p))
+            .unwrap_or_else(|| {
+                let pipeline = Arc::new(device.create_render_pipeline(&RenderPipelineDescriptor {
+                    label: Some("glyphon pipeline"),
+                    layout: Some(&self.pipeline_layout),
+                    vertex: VertexState {
+                        module: &self.shader,
+                        entry_point: "vs_main",
+                        buffers: &self.vertex_buffers,
+                    },
+                    fragment: Some(FragmentState {
+                        module: &self.shader,
+                        entry_point: "fs_main",
+                        targets: &[Some(ColorTargetState {
+                            format: self.format,
+                            blend: Some(BlendState::ALPHA_BLENDING),
+                            write_mask: ColorWrites::default(),
+                        })],
+                    }),
+                    primitive: PrimitiveState::default(),
+                    depth_stencil: depth_stencil.clone(),
+                    multisample,
+                    multiview: None,
+                }));
+
+                self.cached_pipelines
+                    .push((multisample, depth_stencil, pipeline.clone()));
+                pipeline
+            })
     }
 }

@@ -4,9 +4,9 @@ use glyphon::{
 };
 use wgpu::{
     Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
-    Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor,
-    RequestAdapterOptions, SurfaceConfiguration, TextureFormat, TextureUsages,
-    TextureViewDescriptor,
+    Limits, LoadOp, MultisampleState, Operations, PresentMode, RenderPassColorAttachment,
+    RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat,
+    TextureUsages, TextureViewDescriptor,
 };
 use winit::{
     dpi::LogicalSize,
@@ -64,12 +64,13 @@ async fn run() {
     surface.configure(&device, &config);
 
     // Set up text renderer
-    let mut text_renderer = TextRenderer::new(&device, &queue);
     unsafe {
         FONT_SYSTEM = Some(FontSystem::new());
     }
     let mut cache = SwashCache::new(unsafe { FONT_SYSTEM.as_ref().unwrap() });
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
+    let mut text_renderer =
+        TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
     let mut buffer = Buffer::new(
         unsafe { FONT_SYSTEM.as_ref().unwrap() },
         Metrics::new(30, 42),

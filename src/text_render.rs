@@ -2,10 +2,11 @@ use crate::{
     CacheKey, Color, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError,
     RenderError, Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
 };
-use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice};
+use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice, sync::Arc};
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
-    IndexFormat, Origin3d, Queue, RenderPass, TextureAspect, COPY_BUFFER_ALIGNMENT,
+    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
+    ImageDataLayout, IndexFormat, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline,
+    TextureAspect, COPY_BUFFER_ALIGNMENT,
 };
 
 /// A text renderer that uses cached glyphs to render text into an existing render pass.
@@ -17,11 +18,17 @@ pub struct TextRenderer {
     vertices_to_render: u32,
     glyphs_in_use: HashSet<CacheKey>,
     screen_resolution: Resolution,
+    pipeline: Arc<RenderPipeline>,
 }
 
 impl TextRenderer {
     /// Creates a new `TextRenderer`.
-    pub fn new(device: &Device, _queue: &Queue) -> Self {
+    pub fn new(
+        atlas: &mut TextAtlas,
+        device: &Device,
+        multisample: MultisampleState,
+        depth_stencil: Option<DepthStencilState>,
+    ) -> Self {
         let vertex_buffer_size = next_copy_buffer_size(4096);
         let vertex_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("glyphon vertices"),
@@ -38,6 +45,8 @@ impl TextRenderer {
             mapped_at_creation: false,
         });
 
+        let pipeline = atlas.get_or_create_pipeline(device, multisample, depth_stencil);
+
         Self {
             vertex_buffer,
             vertex_buffer_size,
@@ -49,6 +58,7 @@ impl TextRenderer {
                 width: 0,
                 height: 0,
             },
+            pipeline,
         }
     }
 
@@ -420,7 +430,7 @@ impl TextRenderer {
             }
         }
 
-        pass.set_pipeline(&atlas.pipeline);
+        pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &atlas.bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint32);

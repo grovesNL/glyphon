@@ -117,8 +117,8 @@ async fn run() {
                                 right: 600,
                                 bottom: 160,
                             },
+                            default_color: Color::rgb(255, 255, 255),
                         }],
-                        Color::rgb(255, 255, 255),
                         &mut cache,
                     )
                     .unwrap();

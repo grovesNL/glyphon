@@ -1,6 +1,6 @@
 use crate::{
-    CacheKey, Color, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError,
-    RenderError, Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
+    CacheKey, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError, RenderError,
+    Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
 };
 use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice, sync::Arc};
 use wgpu::{
@@ -70,7 +70,6 @@ impl TextRenderer {
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
         text_areas: &[TextArea<'a, 'b>],
-        default_color: Color,
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
     ) -> Result<(), PrepareError> {
@@ -319,7 +318,7 @@ impl TextRenderer {
 
                     let color = match glyph.color_opt {
                         Some(some) => some,
-                        None => default_color,
+                        None => text_area.default_color,
                     };
 
                     let depth = metadata_to_depth(glyph.metadata);
@@ -417,7 +416,6 @@ impl TextRenderer {
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
         text_areas: &[TextArea<'a, 'b>],
-        default_color: Color,
         cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {
         self.prepare_with_depth(
@@ -426,7 +424,6 @@ impl TextRenderer {
             atlas,
             screen_resolution,
             text_areas,
-            default_color,
             cache,
             zero_depth,
         )

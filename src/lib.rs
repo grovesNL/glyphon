@@ -100,4 +100,6 @@ pub struct TextArea<'a, 'b: 'a> {
     /// The visible bounds of the text area. This is used to clip the text and doesn't have to
     /// match the `left` and `top` values.
     pub bounds: TextBounds,
+    // The default color of the text area.
+    pub default_color: Color,
 }

@@ -10,10 +10,9 @@ pub use text_render::TextRenderer;
 // Re-export all top-level types from `cosmic-text` for convenience.
 pub use cosmic_text::{
     self, fontdb, Action, Affinity, Attrs, AttrsList, AttrsOwned, Buffer, BufferLine, CacheKey,
-    Color, Command, Cursor, Edit, Editor, Family, FamilyOwned, Font, FontMatches, FontSystem,
-    LayoutCursor, LayoutGlyph, LayoutLine, LayoutRun, LayoutRunIter, Metrics, ShapeGlyph,
-    ShapeLine, ShapeSpan, ShapeWord, Stretch, Style, SubpixelBin, SwashCache, SwashContent,
-    SwashImage, Weight, Wrap,
+    Color, Command, Cursor, Edit, Editor, Family, FamilyOwned, Font, FontSystem, LayoutCursor,
+    LayoutGlyph, LayoutLine, LayoutRun, LayoutRunIter, Metrics, ShapeGlyph, ShapeLine, ShapeSpan,
+    ShapeWord, Stretch, Style, SubpixelBin, SwashCache, SwashContent, SwashImage, Weight, Wrap,
 };
 
 use etagere::AllocId;
@@ -90,9 +89,9 @@ impl Default for TextBounds {
 }
 
 /// A text area containing text to be rendered along with its overflow behavior.
-pub struct TextArea<'a, 'b: 'a> {
+pub struct TextArea<'a> {
     /// The buffer containing the text to be rendered.
-    pub buffer: &'a Buffer<'b>,
+    pub buffer: &'a Buffer,
     /// The left edge of the buffer.
     pub left: i32,
     /// The top edge of the buffer.

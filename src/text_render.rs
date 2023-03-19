@@ -1,6 +1,6 @@
 use crate::{
-    CacheKey, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError, RenderError,
-    Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
+    CacheKey, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError,
+    RenderError, Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
 };
 use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice, sync::Arc};
 use wgpu::{
@@ -63,13 +63,14 @@ impl TextRenderer {
     }
 
     /// Prepares all of the provided text areas for rendering.
-    pub fn prepare_with_depth<'a, 'b: 'a>(
+    pub fn prepare_with_depth(
         &mut self,
         device: &Device,
         queue: &Queue,
+        font_system: &mut FontSystem,
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
-        text_areas: &[TextArea<'a, 'b>],
+        text_areas: &[TextArea<'_>],
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
     ) -> Result<(), PrepareError> {
@@ -121,7 +122,9 @@ impl TextRenderer {
                         continue;
                     }
 
-                    let image = cache.get_image_uncached(glyph.cache_key).unwrap();
+                    let image = cache
+                        .get_image_uncached(font_system, glyph.cache_key)
+                        .unwrap();
 
                     let content_type = match image.content {
                         SwashContent::Color => ContentType::Color,
@@ -261,7 +264,7 @@ impl TextRenderer {
                     let details = atlas.glyph(&glyph.cache_key).unwrap();
 
                     let mut x = glyph.x_int + details.left as i32 + text_area.left;
-                    let mut y = line_y + glyph.y_int - details.top as i32 + text_area.top;
+                    let mut y = line_y as i32 + glyph.y_int - details.top as i32 + text_area.top;
 
                     let (mut atlas_x, mut atlas_y, content_type) = match details.gpu_cache {
                         GpuCacheStatus::InAtlas { x, y, content_type } => (x, y, content_type),
@@ -409,18 +412,20 @@ impl TextRenderer {
         Ok(())
     }
 
-    pub fn prepare<'a, 'b: 'a>(
+    pub fn prepare(
         &mut self,
         device: &Device,
         queue: &Queue,
+        font_system: &mut FontSystem,
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
-        text_areas: &[TextArea<'a, 'b>],
+        text_areas: &[TextArea<'_>],
         cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {
         self.prepare_with_depth(
             device,
             queue,
+            font_system,
             atlas,
             screen_resolution,
             text_areas,

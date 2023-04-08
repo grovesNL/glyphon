@@ -8,7 +8,7 @@ repository = "https://github.com/grovesNL/glyphon"
 license = "MIT OR Apache-2.0 OR Zlib"
 
 [dependencies]
-wgpu = "0.14.0"
+wgpu = "0.15"
 etagere = "0.2.6"
 cosmic-text = { git = "https://github.com/pop-os/cosmic-text", rev = "e788c17", features = ["std", "swash"] }
 lru = "0.9"

@@ -49,6 +49,7 @@ impl InnerAtlas {
                 _ => panic!("unexpected number of channels"),
             },
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+            view_formats: &[],
         });
 
         let texture_view = texture.create_view(&TextureViewDescriptor::default());

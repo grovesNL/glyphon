@@ -3,10 +3,10 @@ use glyphon::{
     TextBounds, TextRenderer,
 };
 use wgpu::{
-    Backends, CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
-    Limits, LoadOp, MultisampleState, Operations, PresentMode, RenderPassColorAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat,
-    TextureUsages, TextureViewDescriptor,
+    CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
+    InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PresentMode,
+    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration,
+    TextureFormat, TextureUsages, TextureViewDescriptor,
 };
 use winit::{
     dpi::LogicalSize,
@@ -32,7 +32,7 @@ async fn run() {
     let scale_factor = window.scale_factor();
 
     // Set up surface
-    let instance = Instance::new(Backends::all());
+    let instance = Instance::new(InstanceDescriptor::default());
     let adapter = instance
         .request_adapter(&RequestAdapterOptions::default())
         .await
@@ -48,7 +48,7 @@ async fn run() {
         )
         .await
         .unwrap();
-    let surface = unsafe { instance.create_surface(&window) };
+    let surface = unsafe { instance.create_surface(&window) }.expect("Create surface");
     let swapchain_format = TextureFormat::Bgra8UnormSrgb;
     let mut config = SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
@@ -57,6 +57,7 @@ async fn run() {
         height: size.height,
         present_mode: PresentMode::Fifo,
         alpha_mode: CompositeAlphaMode::Opaque,
+        view_formats: vec![],
     };
     surface.configure(&device, &config);
 

@@ -76,7 +76,7 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
         f32((color & 0xff000000u) >> 24u),
     ) / 255.0;
 
-    var dim = vec2<u32>(0);
+    var dim: vec2<u32> = vec2(0u);
     switch in_vert.content_type {
         case 0u: {
             dim = textureDimensions(color_atlas_texture);

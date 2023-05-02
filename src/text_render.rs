@@ -2,7 +2,7 @@ use crate::{
     CacheKey, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError,
     RenderError, Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
 };
-use std::{collections::HashSet, iter, mem::size_of, num::NonZeroU32, slice, sync::Arc};
+use std::{collections::HashSet, iter, mem::size_of, slice, sync::Arc};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
     ImageDataLayout, IndexFormat, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline,
@@ -147,9 +147,7 @@ impl TextRenderer {
                             &image.data,
                             ImageDataLayout {
                                 offset: 0,
-                                bytes_per_row: NonZeroU32::new(
-                                    width as u32 * inner.num_atlas_channels as u32,
-                                ),
+                                bytes_per_row: Some(width as u32 * inner.num_atlas_channels as u32),
                                 rows_per_image: None,
                             },
                             Extent3d {

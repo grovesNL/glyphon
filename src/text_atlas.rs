@@ -15,17 +15,17 @@ use wgpu::{
 
 #[allow(dead_code)]
 pub(crate) struct InnerAtlas {
+    pub kind: Kind,
     pub texture: Texture,
     pub texture_view: TextureView,
     pub packer: BucketedAtlasAllocator,
     pub width: u32,
     pub height: u32,
     pub glyph_cache: LruCache<CacheKey, GlyphDetails>,
-    pub num_atlas_channels: usize,
 }
 
 impl InnerAtlas {
-    fn new(device: &Device, _queue: &Queue, num_atlas_channels: usize) -> Self {
+    fn new(device: &Device, _queue: &Queue, kind: Kind) -> Self {
         let max_texture_dimension_2d = device.limits().max_texture_dimension_2d;
         let width = max_texture_dimension_2d;
         let height = max_texture_dimension_2d;
@@ -43,11 +43,7 @@ impl InnerAtlas {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: match num_atlas_channels {
-                1 => TextureFormat::R8Unorm,
-                4 => TextureFormat::Rgba8UnormSrgb,
-                _ => panic!("unexpected number of channels"),
-            },
+            format: kind.texture_format(),
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
             view_formats: &[],
         });
@@ -57,13 +53,13 @@ impl InnerAtlas {
         let glyph_cache = LruCache::unbounded();
 
         Self {
+            kind,
             texture,
             texture_view,
             packer,
             width,
             height,
             glyph_cache,
-            num_atlas_channels,
         }
     }
 
@@ -82,6 +78,61 @@ impl InnerAtlas {
                 .deallocate(value.atlas_id.expect("cache corrupt"));
         }
     }
+
+    pub fn num_channels(&self) -> usize {
+        self.kind.num_channels()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Kind {
+    Mask,
+    Color { srgb: bool },
+}
+
+impl Kind {
+    fn num_channels(self) -> usize {
+        match self {
+            Kind::Mask => 1,
+            Kind::Color { .. } => 4,
+        }
+    }
+
+    fn texture_format(self) -> wgpu::TextureFormat {
+        match self {
+            Kind::Mask => TextureFormat::R8Unorm,
+            Kind::Color { srgb } => {
+                if srgb {
+                    TextureFormat::Rgba8UnormSrgb
+                } else {
+                    TextureFormat::Rgba8Unorm
+                }
+            }
+        }
+    }
+}
+
+/// The color mode of an [`Atlas`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColorMode {
+    /// Accurate color management.
+    ///
+    /// This mode will use a proper sRGB texture for colored glyphs. This will
+    /// produce physically accurate color blending when rendering.
+    Accurate,
+
+    /// Web color management.
+    ///
+    /// This mode reproduces the color management strategy used in the Web and
+    /// implemented by browsers.
+    ///
+    /// This entails storing glyphs colored using the sRGB color space in a
+    /// linear RGB texture. Blending will not be physically accurate, but will
+    /// produce the same results as most UI toolkits.
+    ///
+    /// This mode should be used to render to a linear RGB texture containing
+    /// sRGB colors.
+    Web,
 }
 
 /// An atlas containing a cache of rasterized glyphs that can be rendered.
@@ -103,8 +154,18 @@ pub struct TextAtlas {
 }
 
 impl TextAtlas {
-    /// Creates a new `TextAtlas`.
+    /// Creates a new [`TextAtlas`].
     pub fn new(device: &Device, queue: &Queue, format: TextureFormat) -> Self {
+        Self::with_color_mode(device, queue, format, ColorMode::Accurate)
+    }
+
+    /// Creates a new [`TextAtlas`] with the given [`ColorMode`].
+    pub fn with_color_mode(
+        device: &Device,
+        queue: &Queue,
+        format: TextureFormat,
+        color_mode: ColorMode,
+    ) -> Self {
         let sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("glyphon sampler"),
             min_filter: FilterMode::Nearest,
@@ -215,8 +276,17 @@ impl TextAtlas {
             mapped_at_creation: false,
         });
 
-        let color_atlas = InnerAtlas::new(device, queue, 4);
-        let mask_atlas = InnerAtlas::new(device, queue, 1);
+        let color_atlas = InnerAtlas::new(
+            device,
+            queue,
+            Kind::Color {
+                srgb: match color_mode {
+                    ColorMode::Accurate => true,
+                    ColorMode::Web => false,
+                },
+            },
+        );
+        let mask_atlas = InnerAtlas::new(device, queue, Kind::Mask);
 
         let bind_group = Arc::new(device.create_bind_group(&BindGroupDescriptor {
             layout: &bind_group_layout,

@@ -3,7 +3,7 @@ mod text_atlas;
 mod text_render;
 
 pub use error::{PrepareError, RenderError};
-pub use text_atlas::TextAtlas;
+pub use text_atlas::{ColorMode, TextAtlas};
 use text_render::ContentType;
 pub use text_render::TextRenderer;
 

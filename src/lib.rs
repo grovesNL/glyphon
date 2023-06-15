@@ -10,8 +10,9 @@ mod text_render;
 
 pub use error::{PrepareError, RenderError};
 pub use text_atlas::{ColorMode, TextAtlas};
-pub use text_render::ContentType;
 pub use text_render::TextRenderer;
+
+use text_render::ContentType;
 
 // Re-export all top-level types from `cosmic-text` for convenience.
 pub use cosmic_text::{

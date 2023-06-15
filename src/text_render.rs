@@ -118,13 +118,20 @@ impl TextRenderer {
                     let should_rasterize = width > 0 && height > 0;
 
                     let (gpu_cache, atlas_id, inner) = if should_rasterize {
-                        let inner = atlas.inner_for_content_mut(content_type);
+                        let mut inner = atlas.inner_for_content_mut(content_type);
 
                         // Find a position in the packer
-                        let allocation = match inner.try_allocate(width, height) {
-                            Some(a) => a,
-                            None => {
-                                return Err(PrepareError::AtlasFull(content_type));
+                        let allocation = loop {
+                            match inner.try_allocate(width, height) {
+                                Some(a) => break a,
+                                None => {
+                                    if !atlas.grow(device, queue, font_system, cache, content_type)
+                                    {
+                                        return Err(PrepareError::AtlasFull);
+                                    }
+
+                                    inner = atlas.inner_for_content_mut(content_type);
+                                }
                             }
                         };
                         let atlas_min = allocation.rectangle.min;

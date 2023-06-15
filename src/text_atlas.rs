@@ -1,4 +1,7 @@
-use crate::{text_render::ContentType, CacheKey, GlyphDetails, GlyphToRender, Params, Resolution};
+use crate::{
+    text_render::ContentType, CacheKey, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus,
+    Params, Resolution, SwashCache,
+};
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
 use std::{borrow::Cow, collections::HashSet, mem::size_of, num::NonZeroU64, sync::Arc};
@@ -6,11 +9,12 @@ use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry,
     BindingResource, BindingType, BlendState, Buffer, BufferBindingType, BufferDescriptor,
     BufferUsages, ColorTargetState, ColorWrites, DepthStencilState, Device, Extent3d, FilterMode,
-    FragmentState, MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
-    Queue, RenderPipeline, RenderPipelineDescriptor, Sampler, SamplerBindingType,
-    SamplerDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStages, Texture,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
-    TextureView, TextureViewDescriptor, TextureViewDimension, VertexFormat, VertexState,
+    FragmentState, ImageCopyTexture, ImageDataLayout, MultisampleState, Origin3d, PipelineLayout,
+    PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor,
+    Sampler, SamplerBindingType, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor,
+    ShaderSource, ShaderStages, Texture, TextureAspect, TextureDescriptor, TextureDimension,
+    TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
+    TextureViewDimension, VertexFormat, VertexState,
 };
 
 #[allow(dead_code)]
@@ -78,20 +82,19 @@ impl InnerAtlas {
             }
 
             // Try to free least recently used allocation
-            let (_, mut value) = self.glyph_cache.peek_lru()?;
+            let (mut key, mut value) = self.glyph_cache.peek_lru()?;
 
             while value.atlas_id.is_none() {
                 let _ = self.glyph_cache.pop_lru();
 
-                (_, value) = self.glyph_cache.peek_lru()?;
+                (key, value) = self.glyph_cache.peek_lru()?;
             }
-
-            let (key, value) = self.glyph_cache.pop_lru().unwrap();
 
             if self.glyphs_in_use.contains(&key) {
                 return None;
             }
 
+            let (_, value) = self.glyph_cache.pop_lru().unwrap();
             self.packer.deallocate(value.atlas_id.unwrap());
         }
     }
@@ -110,7 +113,13 @@ impl InnerAtlas {
         self.glyphs_in_use.insert(glyph);
     }
 
-    pub(crate) fn grow(&mut self, device: &wgpu::Device) -> bool {
+    pub(crate) fn grow(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        font_system: &mut FontSystem,
+        cache: &mut SwashCache,
+    ) -> bool {
         if self.size >= self.max_texture_dimension_2d {
             return false;
         }
@@ -118,7 +127,7 @@ impl InnerAtlas {
         // TODO: Better resizing logic (?)
         let new_size = (self.size + Self::INITIAL_SIZE).min(self.max_texture_dimension_2d);
 
-        self.packer = BucketedAtlasAllocator::new(size2(new_size as i32, new_size as i32));
+        self.packer.grow(size2(new_size as i32, new_size as i32));
 
         // Create a texture to use for our atlas
         self.texture = device.create_texture(&TextureDescriptor {
@@ -136,11 +145,45 @@ impl InnerAtlas {
             view_formats: &[],
         });
 
+        // Re-upload glyphs
+        for (&cache_key, glyph) in &self.glyph_cache {
+            let (x, y) = match glyph.gpu_cache {
+                GpuCacheStatus::InAtlas { x, y, .. } => (x, y),
+                GpuCacheStatus::SkipRasterization => continue,
+            };
+
+            let image = cache.get_image_uncached(font_system, cache_key).unwrap();
+
+            let width = image.placement.width as usize;
+            let height = image.placement.height as usize;
+
+            queue.write_texture(
+                ImageCopyTexture {
+                    texture: &self.texture,
+                    mip_level: 0,
+                    origin: Origin3d {
+                        x: x as u32,
+                        y: y as u32,
+                        z: 0,
+                    },
+                    aspect: TextureAspect::All,
+                },
+                &image.data,
+                ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(width as u32 * self.kind.num_channels() as u32),
+                    rows_per_image: None,
+                },
+                Extent3d {
+                    width: width as u32,
+                    height: height as u32,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
+
         self.texture_view = self.texture.create_view(&TextureViewDescriptor::default());
         self.size = new_size;
-
-        self.glyph_cache.clear();
-        self.glyphs_in_use.clear();
 
         true
     }
@@ -406,18 +449,24 @@ impl TextAtlas {
         self.color_atlas.trim();
     }
 
-    pub fn grow(&mut self, device: &wgpu::Device, content_type: ContentType) -> bool {
+    pub(crate) fn grow(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        font_system: &mut FontSystem,
+        cache: &mut SwashCache,
+        content_type: ContentType,
+    ) -> bool {
         let did_grow = match content_type {
-            ContentType::Mask => self.mask_atlas.grow(device),
-            ContentType::Color => self.color_atlas.grow(device),
+            ContentType::Mask => self.mask_atlas.grow(device, queue, font_system, cache),
+            ContentType::Color => self.color_atlas.grow(device, queue, font_system, cache),
         };
 
         if did_grow {
             self.rebind(device);
-            true
-        } else {
-            false
         }
+
+        did_grow
     }
 
     pub(crate) fn glyph(&self, glyph: &CacheKey) -> Option<&GlyphDetails> {

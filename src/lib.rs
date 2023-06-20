@@ -19,7 +19,8 @@ pub use cosmic_text::{
     self, fontdb, Action, Affinity, Attrs, AttrsList, AttrsOwned, Buffer, BufferLine, CacheKey,
     Color, Command, Cursor, Edit, Editor, Family, FamilyOwned, Font, FontSystem, LayoutCursor,
     LayoutGlyph, LayoutLine, LayoutRun, LayoutRunIter, Metrics, ShapeGlyph, ShapeLine, ShapeSpan,
-    ShapeWord, Stretch, Style, SubpixelBin, SwashCache, SwashContent, SwashImage, Weight, Wrap,
+    ShapeWord, Shaping, Stretch, Style, SubpixelBin, SwashCache, SwashContent, SwashImage, Weight,
+    Wrap,
 };
 
 use etagere::AllocId;
@@ -101,9 +102,11 @@ pub struct TextArea<'a> {
     /// The buffer containing the text to be rendered.
     pub buffer: &'a Buffer,
     /// The left edge of the buffer.
-    pub left: i32,
+    pub left: f32,
     /// The top edge of the buffer.
-    pub top: i32,
+    pub top: f32,
+    /// The scaling to apply to the buffer.
+    pub scale: f32,
     /// The visible bounds of the text area. This is used to clip the text and doesn't have to
     /// match the `left` and `top` values.
     pub bounds: TextBounds,

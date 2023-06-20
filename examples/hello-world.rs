@@ -1,6 +1,6 @@
 use glyphon::{
-    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution, SwashCache, TextArea, TextAtlas,
-    TextBounds, TextRenderer,
+    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea,
+    TextAtlas, TextBounds, TextRenderer,
 };
 use wgpu::{
     CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
@@ -73,7 +73,7 @@ async fn run() {
     let physical_height = (height as f64 * scale_factor) as f32;
 
     buffer.set_size(&mut font_system, physical_width, physical_height);
-    buffer.set_text(&mut font_system, "Hello world! 👋\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif));
+    buffer.set_text(&mut font_system, "Hello world! 👋\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
     buffer.shape_until_scroll(&mut font_system);
 
     event_loop.run(move |event, _, control_flow| {
@@ -103,8 +103,9 @@ async fn run() {
                         },
                         [TextArea {
                             buffer: &buffer,
-                            left: 10,
-                            top: 10,
+                            left: 10.0,
+                            top: 10.0,
+                            scale: 1.0,
                             bounds: TextBounds {
                                 left: 0,
                                 top: 0,

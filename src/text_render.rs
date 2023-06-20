@@ -93,13 +93,24 @@ impl TextRenderer {
         for text_area in text_areas {
             for run in text_area.buffer.layout_runs() {
                 for glyph in run.glyphs.iter() {
-                    if atlas.mask_atlas.glyph_cache.contains(&glyph.cache_key) {
-                        atlas.mask_atlas.promote(glyph.cache_key);
-                    } else if atlas.color_atlas.glyph_cache.contains(&glyph.cache_key) {
-                        atlas.color_atlas.promote(glyph.cache_key);
+                    let physical_glyph =
+                        glyph.physical((text_area.left, text_area.top), text_area.scale);
+
+                    if atlas
+                        .mask_atlas
+                        .glyph_cache
+                        .contains(&physical_glyph.cache_key)
+                    {
+                        atlas.mask_atlas.promote(physical_glyph.cache_key);
+                    } else if atlas
+                        .color_atlas
+                        .glyph_cache
+                        .contains(&physical_glyph.cache_key)
+                    {
+                        atlas.color_atlas.promote(physical_glyph.cache_key);
                     } else {
                         let Some(image) = cache
-                            .get_image_uncached(font_system, glyph.cache_key) else { continue };
+                            .get_image_uncached(font_system, physical_glyph.cache_key) else { continue };
 
                         let content_type = match image.content {
                             SwashContent::Color => ContentType::Color,
@@ -178,7 +189,7 @@ impl TextRenderer {
                         };
 
                         inner.put(
-                            glyph.cache_key,
+                            physical_glyph.cache_key,
                             GlyphDetails {
                                 width: width as u16,
                                 height: height as u16,
@@ -190,11 +201,11 @@ impl TextRenderer {
                         );
                     }
 
-                    let details = atlas.glyph(&glyph.cache_key).unwrap();
+                    let details = atlas.glyph(&physical_glyph.cache_key).unwrap();
 
-                    let mut x = glyph.x_int + details.left as i32 + text_area.left;
-                    let mut y =
-                        run.line_y as i32 + glyph.y_int - details.top as i32 + text_area.top;
+                    let mut x = physical_glyph.x + details.left as i32;
+                    let mut y = (run.line_y * text_area.scale).round() as i32 + physical_glyph.y
+                        - details.top as i32;
 
                     let (mut atlas_x, mut atlas_y, content_type) = match details.gpu_cache {
                         GpuCacheStatus::InAtlas { x, y, content_type } => (x, y, content_type),

@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0 OR Zlib"
 [dependencies]
 wgpu = "0.16"
 etagere = "0.2.8"
-cosmic-text = "0.8"
+cosmic-text = "0.9"
 lru = "0.9"
 
 [dev-dependencies]

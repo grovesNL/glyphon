@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0 OR Zlib"
 
 [dependencies]
 wgpu = "0.16"
-etagere = { git = "https://github.com/hecrj/etagere.git", rev = "4ee873d5c412d31237cd51efdcfdc7a0afd1953b" }
+etagere = "0.2.8"
 cosmic-text = "0.8"
 lru = "0.9"
 

@@ -84,12 +84,19 @@ impl InnerAtlas {
             // Try to free least recently used allocation
             let (mut key, mut value) = self.glyph_cache.peek_lru()?;
 
+            // Find a glyph with an actual size
             while value.atlas_id.is_none() {
+                // All sized glyphs are in use, cache is full
+                if self.glyphs_in_use.contains(&key) {
+                    return None;
+                }
+
                 let _ = self.glyph_cache.pop_lru();
 
                 (key, value) = self.glyph_cache.peek_lru()?;
             }
 
+            // All sized glyphs are in use, cache is full
             if self.glyphs_in_use.contains(&key) {
                 return None;
             }

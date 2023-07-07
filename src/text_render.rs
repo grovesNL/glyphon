@@ -68,7 +68,7 @@ impl TextRenderer {
         font_system: &mut FontSystem,
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
-        text_areas: impl Iterator<Item = TextArea<'a>>,
+        text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
     ) -> Result<(), PrepareError> {
@@ -349,7 +349,7 @@ impl TextRenderer {
         font_system: &mut FontSystem,
         atlas: &mut TextAtlas,
         screen_resolution: Resolution,
-        text_areas: impl Iterator<Item = TextArea<'a>>,
+        text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {
         self.prepare_with_depth(

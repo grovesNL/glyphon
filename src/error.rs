@@ -40,3 +40,5 @@ impl Display for RenderError {
         }
     }
 }
+
+impl Error for RenderError {}

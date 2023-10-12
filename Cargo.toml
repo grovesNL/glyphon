@@ -14,5 +14,5 @@ cosmic-text = "0.9"
 lru = "0.11"
 
 [dev-dependencies]
-winit = "0.28.0"
+winit = "0.28.7"
 pollster = "0.3.0"

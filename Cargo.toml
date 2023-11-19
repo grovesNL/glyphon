@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0 OR Zlib"
 
 [dependencies]
 wgpu = "0.18"
-etagere = "0.2.8"
+etagere = "0.2.10"
 cosmic-text = "0.10"
 lru = "0.11"
 

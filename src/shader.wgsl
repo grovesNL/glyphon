@@ -1,11 +1,10 @@
 struct VertexInput {
     @builtin(vertex_index) vertex_idx: u32,
     @location(0) pos: vec2<i32>,
-    @location(1) dim: u32,
-    @location(2) uv: u32,
-    @location(3) color: u32,
-    @location(4) content_type: u32,
-    @location(5) depth: f32,
+    @location(1) uv: u32,
+    @location(2) color: u32,
+    @location(3) content_type: u32,
+    @location(4) depth: f32,
 }
 
 struct VertexOutput {
@@ -35,32 +34,10 @@ var atlas_sampler: sampler;
 @vertex
 fn vs_main(in_vert: VertexInput) -> VertexOutput {
     var pos = in_vert.pos;
-    let width = in_vert.dim & 0xffffu;
-    let height = (in_vert.dim & 0xffff0000u) >> 16u;
     let color = in_vert.color;
     var uv = vec2<u32>(in_vert.uv & 0xffffu, (in_vert.uv & 0xffff0000u) >> 16u);
     let v = in_vert.vertex_idx % 4u;
-
-    switch v {
-        case 1u: {
-            pos.x += i32(width);
-            uv.x += width;
-        }
-        case 2u: {
-            pos.x += i32(width);
-            pos.y += i32(height);
-            uv.x += width;
-            uv.y += height;
-        }
-        case 3u: {
-            pos.y += i32(height);
-            uv.y += height;
-        }
-        default: {}
-    }
-
     var vert_output: VertexOutput;
-
     vert_output.position = vec4<f32>(
         2.0 * vec2<f32>(pos) / vec2<f32>(params.screen_resolution) - 1.0,
         in_vert.depth,

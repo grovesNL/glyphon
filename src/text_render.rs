@@ -2,7 +2,7 @@ use crate::{
     FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError, RenderError,
     Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
 };
-use std::{iter, mem::size_of, slice, sync::Arc};
+use std::{mem::size_of, slice, sync::Arc};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
     ImageDataLayout, IndexFormat, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline,
@@ -109,8 +109,11 @@ impl TextRenderer {
                     {
                         atlas.color_atlas.promote(physical_glyph.cache_key);
                     } else {
-                        let Some(image) = cache
-                            .get_image_uncached(font_system, physical_glyph.cache_key) else { continue };
+                        let Some(image) =
+                            cache.get_image_uncached(font_system, physical_glyph.cache_key)
+                        else {
+                            continue;
+                        };
 
                         let content_type = match image.content {
                             SwashContent::Color => ContentType::Color,
@@ -267,17 +270,46 @@ impl TextRenderer {
 
                     let depth = metadata_to_depth(glyph.metadata);
 
-                    glyph_vertices.extend(
-                        iter::repeat(GlyphToRender {
-                            pos: [x, y],
-                            dim: [width as u16, height as u16],
+                    {
+                        let mut g0 = GlyphToRender {
+                            pos: glam::IVec2 { x, y },
                             uv: [atlas_x, atlas_y],
                             color: color.0,
                             content_type: content_type as u32,
                             depth,
-                        })
-                        .take(4),
-                    );
+                        };
+
+                        let mut g1 = g0;
+                        g1.pos[0] += width;
+                        g1.uv[0] += width as u16;
+
+                        let mut g2 = g1;
+                        g2.pos[1] += height;
+                        g2.uv[1] += height as u16;
+
+                        let mut g3 = g0;
+                        g3.pos[1] += height;
+                        g3.uv[1] += height as u16;
+
+                        g0.pos = text_area
+                            .transform
+                            .transform_point2(g0.pos.as_vec2())
+                            .as_ivec2();
+                        g1.pos = text_area
+                            .transform
+                            .transform_point2(g1.pos.as_vec2())
+                            .as_ivec2();
+                        g2.pos = text_area
+                            .transform
+                            .transform_point2(g2.pos.as_vec2())
+                            .as_ivec2();
+                        g3.pos = text_area
+                            .transform
+                            .transform_point2(g3.pos.as_vec2())
+                            .as_ivec2();
+
+                        glyph_vertices.extend(&[g0, g1, g2, g3]);
+                    }
 
                     let start = 4 * glyphs_added as u32;
                     glyph_indices.extend([

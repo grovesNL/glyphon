@@ -22,6 +22,7 @@ pub use cosmic_text::{
     ShapeWord, Shaping, Stretch, Style, SubpixelBin, SwashCache, SwashContent, SwashImage, Weight,
     Wrap,
 };
+pub use glam::Mat3;
 
 use etagere::AllocId;
 
@@ -46,8 +47,7 @@ pub(crate) struct GlyphDetails {
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct GlyphToRender {
-    pos: [i32; 2],
-    dim: [u16; 2],
+    pos: glam::IVec2,
     uv: [u16; 2],
     color: u32,
     content_type: u32,
@@ -112,4 +112,6 @@ pub struct TextArea<'a> {
     pub bounds: TextBounds,
     // The default color of the text area.
     pub default_color: Color,
+    /// The 2D transformation
+    pub transform: Mat3,
 }

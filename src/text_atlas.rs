@@ -87,7 +87,7 @@ impl InnerAtlas {
             // Find a glyph with an actual size
             while value.atlas_id.is_none() {
                 // All sized glyphs are in use, cache is full
-                if self.glyphs_in_use.contains(&key) {
+                if self.glyphs_in_use.contains(key) {
                     return None;
                 }
 
@@ -97,7 +97,7 @@ impl InnerAtlas {
             }
 
             // All sized glyphs are in use, cache is full
-            if self.glyphs_in_use.contains(&key) {
+            if self.glyphs_in_use.contains(key) {
                 return None;
             }
 

@@ -109,8 +109,11 @@ impl TextRenderer {
                     {
                         atlas.color_atlas.promote(physical_glyph.cache_key);
                     } else {
-                        let Some(image) = cache
-                            .get_image_uncached(font_system, physical_glyph.cache_key) else { continue };
+                        let Some(image) =
+                            cache.get_image_uncached(font_system, physical_glyph.cache_key)
+                        else {
+                            continue;
+                        };
 
                         let content_type = match image.content {
                             SwashContent::Color => ContentType::Color,

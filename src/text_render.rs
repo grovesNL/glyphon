@@ -306,7 +306,7 @@ impl TextRenderer {
         let vertices_raw = unsafe {
             slice::from_raw_parts(
                 vertices as *const _ as *const u8,
-                size_of::<GlyphToRender>() * vertices.len(),
+                std::mem::size_of_val(vertices),
             )
         };
 
@@ -330,7 +330,7 @@ impl TextRenderer {
         let indices_raw = unsafe {
             slice::from_raw_parts(
                 indices as *const _ as *const u8,
-                size_of::<u32>() * indices.len(),
+                std::mem::size_of_val(indices),
             )
         };
 

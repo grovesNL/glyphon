@@ -15,6 +15,7 @@ pub use text_render::TextRenderer;
 use text_render::ContentType;
 
 // Re-export all top-level types from `cosmic-text` for convenience.
+#[doc(no_inline)]
 pub use cosmic_text::{
     self, fontdb, Action, Affinity, Attrs, AttrsList, AttrsOwned, Buffer, BufferLine, CacheKey,
     Color, Command, Cursor, Edit, Editor, Family, FamilyOwned, Font, FontSystem, LayoutCursor,

@@ -1,4 +1,4 @@
-//! Glyphon provides a simple way to render 2D text with [wpgu], [cosmic-text] and [etagere].
+//! Glyphon provides a simple way to render 2D text with [wgpu], [cosmic-text] and [etagere].
 //!
 //! [wpgu]: https://github.com/gfx-rs/wgpu
 //! [cosmic-text]: https://github.com/pop-os/cosmic-text

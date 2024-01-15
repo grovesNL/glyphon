@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use glyphon::{
     Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea,
     TextAtlas, TextBounds, TextRenderer,
@@ -113,6 +115,9 @@ async fn run() {
                                 bottom: 160,
                             },
                             default_color: Color::rgb(255, 255, 255),
+                            transform: glyphon::Mat3::IDENTITY,
+                            // transform: glyphon::Mat3::from_angle(PI / 2.0)
+                            //     * glyphon::Mat3::from_translation(glam::Vec2::new(200.0, -200.0)),
                         }],
                         &mut cache,
                     )

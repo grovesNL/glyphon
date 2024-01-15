@@ -131,8 +131,10 @@ impl InnerAtlas {
             return false;
         }
 
-        // TODO: Better resizing logic (?)
-        let new_size = (self.size + Self::INITIAL_SIZE).min(self.max_texture_dimension_2d);
+        // Grow each dimension by a factor of 2. The growth factor was chosen to match the growth
+        // factor of `Vec`.`
+        const GROWTH_FACTOR: u32 = 2;
+        let new_size = (self.size * GROWTH_FACTOR).min(self.max_texture_dimension_2d);
 
         self.packer.grow(size2(new_size as i32, new_size as i32));
 

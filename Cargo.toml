@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0 OR Zlib"
 wgpu = "0.18"
 etagere = "0.2.10"
 cosmic-text = "0.10"
-lru = "0.11"
+lru = "0.12.1"
 
 [dev-dependencies]
 winit = { version = "0.29.10", features = ["rwh_05"] }

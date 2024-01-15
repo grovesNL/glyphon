@@ -14,5 +14,5 @@ cosmic-text = "0.10"
 lru = "0.11"
 
 [dev-dependencies]
-winit = "0.28.7"
+winit = { version = "0.29.10", features = ["rwh_05"] }
 pollster = "0.3.0"

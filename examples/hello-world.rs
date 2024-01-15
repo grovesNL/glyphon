@@ -11,7 +11,7 @@ use wgpu::{
 use winit::{
     dpi::LogicalSize,
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::EventLoop,
     window::WindowBuilder,
 };
 
@@ -22,7 +22,7 @@ fn main() {
 async fn run() {
     // Set up window
     let (width, height) = (800, 600);
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
         .with_inner_size(LogicalSize::new(width as f64, height as f64))
         .with_title("glyphon hello world")
@@ -76,84 +76,80 @@ async fn run() {
     buffer.set_text(&mut font_system, "Hello world! 👋\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
     buffer.shape_until_scroll(&mut font_system);
 
-    event_loop.run(move |event, _, control_flow| {
-        let _ = (&instance, &adapter);
+    event_loop
+        .run(move |event, target| {
+            if let Event::WindowEvent {
+                window_id: _,
+                event,
+            } = event
+            {
+                match event {
+                    WindowEvent::Resized(size) => {
+                        config.width = size.width;
+                        config.height = size.height;
+                        surface.configure(&device, &config);
+                        window.request_redraw();
+                    }
+                    WindowEvent::RedrawRequested => {
+                        text_renderer
+                            .prepare(
+                                &device,
+                                &queue,
+                                &mut font_system,
+                                &mut atlas,
+                                Resolution {
+                                    width: config.width,
+                                    height: config.height,
+                                },
+                                [TextArea {
+                                    buffer: &buffer,
+                                    left: 10.0,
+                                    top: 10.0,
+                                    scale: 1.0,
+                                    bounds: TextBounds {
+                                        left: 0,
+                                        top: 0,
+                                        right: 600,
+                                        bottom: 160,
+                                    },
+                                    default_color: Color::rgb(255, 255, 255),
+                                }],
+                                &mut cache,
+                            )
+                            .unwrap();
 
-        *control_flow = ControlFlow::Poll;
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::Resized(size),
-                ..
-            } => {
-                config.width = size.width;
-                config.height = size.height;
-                surface.configure(&device, &config);
-                window.request_redraw();
-            }
-            Event::RedrawRequested(_) => {
-                text_renderer
-                    .prepare(
-                        &device,
-                        &queue,
-                        &mut font_system,
-                        &mut atlas,
-                        Resolution {
-                            width: config.width,
-                            height: config.height,
-                        },
-                        [TextArea {
-                            buffer: &buffer,
-                            left: 10.0,
-                            top: 10.0,
-                            scale: 1.0,
-                            bounds: TextBounds {
-                                left: 0,
-                                top: 0,
-                                right: 600,
-                                bottom: 160,
-                            },
-                            default_color: Color::rgb(255, 255, 255),
-                        }],
-                        &mut cache,
-                    )
-                    .unwrap();
+                        let frame = surface.get_current_texture().unwrap();
+                        let view = frame.texture.create_view(&TextureViewDescriptor::default());
+                        let mut encoder = device
+                            .create_command_encoder(&CommandEncoderDescriptor { label: None });
+                        {
+                            let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                                label: None,
+                                color_attachments: &[Some(RenderPassColorAttachment {
+                                    view: &view,
+                                    resolve_target: None,
+                                    ops: Operations {
+                                        load: LoadOp::Clear(wgpu::Color::BLACK),
+                                        store: wgpu::StoreOp::Store,
+                                    },
+                                })],
+                                depth_stencil_attachment: None,
+                                timestamp_writes: None,
+                                occlusion_query_set: None,
+                            });
 
-                let frame = surface.get_current_texture().unwrap();
-                let view = frame.texture.create_view(&TextureViewDescriptor::default());
-                let mut encoder =
-                    device.create_command_encoder(&CommandEncoderDescriptor { label: None });
-                {
-                    let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                        label: None,
-                        color_attachments: &[Some(RenderPassColorAttachment {
-                            view: &view,
-                            resolve_target: None,
-                            ops: Operations {
-                                load: LoadOp::Clear(wgpu::Color::BLACK),
-                                store: wgpu::StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    });
+                            text_renderer.render(&atlas, &mut pass).unwrap();
+                        }
 
-                    text_renderer.render(&atlas, &mut pass).unwrap();
+                        queue.submit(Some(encoder.finish()));
+                        frame.present();
+
+                        atlas.trim();
+                    }
+                    WindowEvent::CloseRequested => target.exit(),
+                    _ => {}
                 }
-
-                queue.submit(Some(encoder.finish()));
-                frame.present();
-
-                atlas.trim();
             }
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::MainEventsCleared => {
-                window.request_redraw();
-            }
-            _ => {}
-        }
-    });
+        })
+        .unwrap();
 }

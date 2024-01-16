@@ -51,7 +51,7 @@ pub(crate) struct GlyphToRender {
     dim: [u16; 2],
     uv: [u16; 2],
     color: u32,
-    content_type: u32,
+    content_type_with_srgb: [u16; 2],
     depth: f32,
 }
 

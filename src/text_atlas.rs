@@ -271,6 +271,7 @@ pub struct TextAtlas {
     pub(crate) shader: ShaderModule,
     pub(crate) vertex_buffers: [wgpu::VertexBufferLayout<'static>; 1],
     pub(crate) format: TextureFormat,
+    pub(crate) color_mode: ColorMode,
 }
 
 impl TextAtlas {
@@ -450,6 +451,7 @@ impl TextAtlas {
             shader,
             vertex_buffers,
             format,
+            color_mode,
         }
     }
 

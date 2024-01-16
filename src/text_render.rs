@@ -1,6 +1,6 @@
 use crate::{
-    FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError, RenderError,
-    Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
+    ColorMode, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError,
+    RenderError, Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
 };
 use std::{iter, mem::size_of, slice, sync::Arc};
 use wgpu::{
@@ -276,7 +276,13 @@ impl TextRenderer {
                             dim: [width as u16, height as u16],
                             uv: [atlas_x, atlas_y],
                             color: color.0,
-                            content_type: content_type as u32,
+                            content_type_with_srgb: [
+                                content_type as u16,
+                                match atlas.color_mode {
+                                    ColorMode::Accurate => TextColorConversion::ConvertToLinear,
+                                    ColorMode::Web => TextColorConversion::None,
+                                } as u16,
+                            ],
                             depth,
                         })
                         .take(4),
@@ -405,11 +411,18 @@ impl TextRenderer {
     }
 }
 
-#[repr(u32)]
+#[repr(u16)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ContentType {
     Color = 0,
     Mask = 1,
+}
+
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum TextColorConversion {
+    None = 0,
+    ConvertToLinear = 1,
 }
 
 fn next_copy_buffer_size(size: u64) -> u64 {

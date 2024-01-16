@@ -4,7 +4,7 @@ struct VertexInput {
     @location(1) dim: u32,
     @location(2) uv: u32,
     @location(3) color: u32,
-    @location(4) content_type: u32,
+    @location(4) content_type_with_srgb: u32,
     @location(5) depth: f32,
 }
 
@@ -32,8 +32,7 @@ var mask_atlas_texture: texture_2d<f32>;
 @group(0) @binding(3)
 var atlas_sampler: sampler;
 
-fn srgb_to_linear(srgb: u32) -> f32 {
-    let c = f32(srgb) / 255.0;
+fn srgb_to_linear(c: f32) -> f32 {
     if c <= 0.04045 {
         return c / 12.92;
     } else {
@@ -78,15 +77,31 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
 
     vert_output.position.y *= -1.0;
 
-    vert_output.color = vec4<f32>(
-        srgb_to_linear((color & 0x00ff0000u) >> 16u),
-        srgb_to_linear((color & 0x0000ff00u) >> 8u),
-        srgb_to_linear(color & 0x000000ffu),
-        f32((color & 0xff000000u) >> 24u) / 255.0,
-    );
+    let content_type = in_vert.content_type_with_srgb & 0xffffu;
+    let srgb = (in_vert.content_type_with_srgb & 0xffff0000u) >> 16u;
+
+    switch srgb {
+        case 0u: {
+            vert_output.color = vec4<f32>(
+                f32((color & 0x00ff0000u) >> 16u) / 255.0,
+                f32((color & 0x0000ff00u) >> 8u) / 255.0,
+                f32(color & 0x000000ffu) / 255.0,
+                f32((color & 0xff000000u) >> 24u) / 255.0,
+            );
+        }
+        case 1u: {
+            vert_output.color = vec4<f32>(
+                srgb_to_linear(f32((color & 0x00ff0000u) >> 16u) / 255.0),
+                srgb_to_linear(f32((color & 0x0000ff00u) >> 8u) / 255.0),
+                srgb_to_linear(f32(color & 0x000000ffu) / 255.0),
+                f32((color & 0xff000000u) >> 24u) / 255.0,
+            );
+        }
+        default: {}
+    }
 
     var dim: vec2<u32> = vec2(0u);
-    switch in_vert.content_type {
+    switch content_type {
         case 0u: {
             dim = textureDimensions(color_atlas_texture);
             break;
@@ -98,7 +113,7 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
         default: {}
     }
 
-    vert_output.content_type = in_vert.content_type;
+    vert_output.content_type = content_type;
 
     vert_output.uv = vec2<f32>(uv) / vec2<f32>(dim);
 

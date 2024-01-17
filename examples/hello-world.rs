@@ -15,6 +15,8 @@ use winit::{
     window::WindowBuilder,
 };
 
+use std::sync::Arc;
+
 fn main() {
     pollster::block_on(run());
 }
@@ -23,11 +25,11 @@ async fn run() {
     // Set up window
     let (width, height) = (800, 600);
     let event_loop = EventLoop::new().unwrap();
-    let window = WindowBuilder::new()
+    let window = Arc::new(WindowBuilder::new()
         .with_inner_size(LogicalSize::new(width as f64, height as f64))
         .with_title("glyphon hello world")
         .build(&event_loop)
-        .unwrap();
+        .unwrap());
     let size = window.inner_size();
     let scale_factor = window.scale_factor();
 
@@ -41,14 +43,15 @@ async fn run() {
         .request_device(
             &DeviceDescriptor {
                 label: None,
-                features: Features::empty(),
-                limits: Limits::downlevel_defaults(),
+                required_features: Features::empty(),
+                required_limits: Limits::downlevel_defaults(),
             },
             None,
         )
         .await
         .unwrap();
-    let surface = unsafe { instance.create_surface(&window) }.expect("Create surface");
+
+    let surface = instance.create_surface(window.clone()).expect("Create surface");
     let swapchain_format = TextureFormat::Bgra8UnormSrgb;
     let mut config = SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
@@ -58,6 +61,7 @@ async fn run() {
         present_mode: PresentMode::Fifo,
         alpha_mode: CompositeAlphaMode::Opaque,
         view_formats: vec![],
+        desired_maximum_frame_latency: 2,
     };
     surface.configure(&device, &config);
 

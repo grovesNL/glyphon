@@ -8,7 +8,7 @@ repository = "https://github.com/grovesNL/glyphon"
 license = "MIT OR Apache-2.0 OR Zlib"
 
 [dependencies]
-wgpu = { version = "0.19", default-features = false }
+wgpu = { version = "0.19", default-features = false, features = ["wgsl"] }
 etagere = "0.2.10"
 cosmic-text = "0.10"
 lru = "0.12.1"

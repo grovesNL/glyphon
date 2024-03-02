@@ -178,11 +178,11 @@ async fn run() {
                                 occlusion_query_set: None,
                             });
 
-                            text_renderer.render_range(&atlas, &mut pass, 0..1).unwrap();
+                            text_renderer.render_range(0..1, &atlas, &mut pass).unwrap();
 
                             // render other things ...
 
-                            text_renderer.render_range(&atlas, &mut pass, 1..2).unwrap();
+                            text_renderer.render_range(1..2, &atlas, &mut pass).unwrap();
                         }
 
                         queue.submit(Some(encoder.finish()));

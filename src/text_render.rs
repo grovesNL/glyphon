@@ -423,9 +423,9 @@ impl TextRenderer {
     /// Renders a range of text areas that were previously provided to `prepare`.
     pub fn render_range<'pass>(
         &'pass self,
+        text_areas: Range<usize>,
         atlas: &'pass TextAtlas,
         pass: &mut RenderPass<'pass>,
-        text_areas: Range<usize>,
     ) -> Result<(), RenderError> {
         if self.vertices_to_render == 0 || text_areas.is_empty() {
             return Ok(());

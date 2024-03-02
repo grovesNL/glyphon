@@ -22,6 +22,11 @@ impl Error for PrepareError {}
 pub enum RenderError {
     RemovedFromAtlas,
     ScreenResolutionChanged,
+    RangeOutOfBounds {
+        start: usize,
+        end: usize,
+        num_text_areas: usize,
+    },
 }
 
 impl Display for RenderError {
@@ -37,6 +42,13 @@ impl Display for RenderError {
                 f,
                 "Render error: screen resolution changed since last `prepare` call"
             ),
+            RenderError::RangeOutOfBounds { start, end, num_text_areas } => write!(
+                f,
+                "Render error: the range [{}..{}] is out of bounds in renderer with {} prepared text areas",
+                start,
+                end,
+                num_text_areas,
+            )
         }
     }
 }

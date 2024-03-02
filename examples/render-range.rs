@@ -28,7 +28,7 @@ async fn run() {
     let window = Arc::new(
         WindowBuilder::new()
             .with_inner_size(LogicalSize::new(width as f64, height as f64))
-            .with_title("glyphon hello world")
+            .with_title("glyphon render range")
             .build(&event_loop)
             .unwrap(),
     );
@@ -75,14 +75,29 @@ async fn run() {
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
     let mut text_renderer =
         TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
-    let mut buffer = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
 
     let physical_width = (width as f64 * scale_factor) as f32;
     let physical_height = (height as f64 * scale_factor) as f32;
 
-    buffer.set_size(&mut font_system, physical_width, physical_height);
-    buffer.set_text(&mut font_system, "Hello world! 👋\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
-    buffer.shape_until_scroll(&mut font_system);
+    let mut buffer1 = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
+    buffer1.set_size(&mut font_system, physical_width, physical_height);
+    buffer1.set_text(
+        &mut font_system,
+        "first render",
+        Attrs::new().family(Family::SansSerif),
+        Shaping::Basic,
+    );
+    buffer1.shape_until_scroll(&mut font_system);
+
+    let mut buffer2 = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
+    buffer2.set_size(&mut font_system, physical_width, physical_height);
+    buffer2.set_text(
+        &mut font_system,
+        "second render",
+        Attrs::new().family(Family::SansSerif),
+        Shaping::Basic,
+    );
+    buffer2.shape_until_scroll(&mut font_system);
 
     event_loop
         .run(move |event, target| {
@@ -109,22 +124,39 @@ async fn run() {
                                     width: config.width,
                                     height: config.height,
                                 },
-                                [TextArea {
-                                    buffer: &buffer,
-                                    left: 10.0,
-                                    top: 10.0,
-                                    scale: 1.0,
-                                    bounds: TextBounds {
-                                        left: 0,
-                                        top: 0,
-                                        right: 600,
-                                        bottom: 160,
+                                [
+                                    TextArea {
+                                        buffer: &buffer1,
+                                        left: 10.0,
+                                        top: 10.0,
+                                        scale: 1.0,
+                                        bounds: TextBounds {
+                                            left: 0,
+                                            top: 0,
+                                            right: 600,
+                                            bottom: 600,
+                                        },
+                                        default_color: Color::rgb(255, 255, 255),
                                     },
-                                    default_color: Color::rgb(255, 255, 255),
-                                }],
+                                    TextArea {
+                                        buffer: &buffer2,
+                                        left: 10.0,
+                                        top: 80.0,
+                                        scale: 1.0,
+                                        bounds: TextBounds {
+                                            left: 0,
+                                            top: 0,
+                                            right: 600,
+                                            bottom: 600,
+                                        },
+                                        default_color: Color::rgb(255, 0, 255),
+                                    },
+                                ],
                                 &mut cache,
                             )
                             .unwrap();
+
+                        assert_eq!(text_renderer.num_text_areas(), 2);
 
                         let frame = surface.get_current_texture().unwrap();
                         let view = frame.texture.create_view(&TextureViewDescriptor::default());
@@ -146,7 +178,11 @@ async fn run() {
                                 occlusion_query_set: None,
                             });
 
-                            text_renderer.render(&atlas, &mut pass).unwrap();
+                            text_renderer.render_range(&atlas, &mut pass, 0..1).unwrap();
+
+                            // render other things ...
+
+                            text_renderer.render_range(&atlas, &mut pass, 1..2).unwrap();
                         }
 
                         queue.submit(Some(encoder.finish()));

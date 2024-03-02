@@ -2,7 +2,7 @@ use crate::{
     ColorMode, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError,
     RenderError, Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
 };
-use std::{iter, mem::size_of, slice, sync::Arc};
+use std::{iter, mem::size_of, ops::Range, slice, sync::Arc};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
     ImageDataLayout, IndexFormat, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline,
@@ -16,6 +16,7 @@ pub struct TextRenderer {
     index_buffer: Buffer,
     index_buffer_size: u64,
     vertices_to_render: u32,
+    text_area_index_map: Vec<Range<u32>>,
     screen_resolution: Resolution,
     pipeline: Arc<RenderPipeline>,
 }
@@ -52,6 +53,7 @@ impl TextRenderer {
             index_buffer,
             index_buffer_size,
             vertices_to_render: 0,
+            text_area_index_map: Vec::new(),
             screen_resolution: Resolution {
                 width: 0,
                 height: 0,
@@ -72,6 +74,8 @@ impl TextRenderer {
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
     ) -> Result<(), PrepareError> {
+        const VERTICES_PER_GLYPH: u32 = 6;
+
         self.screen_resolution = screen_resolution;
 
         let atlas_current_resolution = { atlas.params.screen_resolution };
@@ -86,11 +90,15 @@ impl TextRenderer {
             });
         }
 
+        self.text_area_index_map.clear();
+
         let mut glyph_vertices: Vec<GlyphToRender> = Vec::new();
         let mut glyph_indices: Vec<u32> = Vec::new();
         let mut glyphs_added = 0;
 
         for text_area in text_areas {
+            let index_buffer_start = glyphs_added as u32 * VERTICES_PER_GLYPH;
+
             for run in text_area.buffer.layout_runs() {
                 for glyph in run.glyphs.iter() {
                     let physical_glyph =
@@ -301,9 +309,11 @@ impl TextRenderer {
                     glyphs_added += 1;
                 }
             }
+
+            self.text_area_index_map
+                .push(index_buffer_start..glyphs_added as u32 * VERTICES_PER_GLYPH);
         }
 
-        const VERTICES_PER_GLYPH: u32 = 6;
         self.vertices_to_render = glyphs_added as u32 * VERTICES_PER_GLYPH;
 
         let will_render = glyphs_added > 0;
@@ -408,6 +418,57 @@ impl TextRenderer {
         pass.draw_indexed(0..self.vertices_to_render, 0, 0..1);
 
         Ok(())
+    }
+
+    /// Renders a range of text areas that were previously provided to `prepare`.
+    pub fn render_range<'pass>(
+        &'pass self,
+        atlas: &'pass TextAtlas,
+        pass: &mut RenderPass<'pass>,
+        text_areas: Range<usize>,
+    ) -> Result<(), RenderError> {
+        if self.vertices_to_render == 0 || text_areas.is_empty() {
+            return Ok(());
+        }
+
+        {
+            // Validate that screen resolution hasn't changed since `prepare`
+            if self.screen_resolution != atlas.params.screen_resolution {
+                return Err(RenderError::ScreenResolutionChanged);
+            }
+        }
+
+        let index_start = if let Some(range) = self.text_area_index_map.get(text_areas.start) {
+            range.start
+        } else {
+            return Err(RenderError::RangeOutOfBounds {
+                start: text_areas.start,
+                end: text_areas.end,
+                num_text_areas: self.text_area_index_map.len(),
+            });
+        };
+        let index_end = if let Some(range) = self.text_area_index_map.get(text_areas.end - 1) {
+            range.end
+        } else {
+            return Err(RenderError::RangeOutOfBounds {
+                start: text_areas.start,
+                end: text_areas.end,
+                num_text_areas: self.text_area_index_map.len(),
+            });
+        };
+
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, &atlas.bind_group, &[]);
+        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint32);
+        pass.draw_indexed(index_start..index_end, 0, 0..1);
+
+        Ok(())
+    }
+
+    /// The number of text areas that were previously provided to `prepare`.
+    pub fn num_text_areas(&self) -> usize {
+        self.text_area_index_map.len()
     }
 }
 

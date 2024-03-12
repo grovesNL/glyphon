@@ -5,9 +5,9 @@ use wgpu::{
     BindingResource, BindingType, BlendState, Buffer, BufferBindingType, ColorTargetState,
     ColorWrites, DepthStencilState, Device, FilterMode, FragmentState, MultisampleState,
     PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
-    RenderPipeline, RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor,
-    ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureFormat,
-    TextureSampleType, TextureView, TextureViewDimension, VertexFormat, VertexState,
+    PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, Sampler, SamplerBindingType,
+    SamplerDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStages,
+    TextureFormat, TextureSampleType, TextureView, TextureViewDimension, VertexFormat, VertexState,
 };
 
 use std::borrow::Cow;
@@ -56,7 +56,7 @@ impl Cache {
 
         let vertex_buffer_layout = wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<GlyphToRender>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
+            step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
                 wgpu::VertexAttribute {
                     format: VertexFormat::Sint32x2,
@@ -232,7 +232,10 @@ impl Cache {
                         })],
                         compilation_options: PipelineCompilationOptions::default(),
                     }),
-                    primitive: PrimitiveState::default(),
+                    primitive: PrimitiveState {
+                        topology: PrimitiveTopology::TriangleStrip,
+                        ..Default::default()
+                    },
                     depth_stencil: depth_stencil.clone(),
                     multisample,
                     multiview: None,

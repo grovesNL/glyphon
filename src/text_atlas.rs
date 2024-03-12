@@ -7,14 +7,14 @@ use lru::LruCache;
 use std::{borrow::Cow, collections::HashSet, mem::size_of, num::NonZeroU64, sync::Arc};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry,
-    BindingResource, BindingType, BlendState, Buffer, BufferBindingType, BufferDescriptor,
-    BufferUsages, ColorTargetState, ColorWrites, DepthStencilState, Device, Extent3d, FilterMode,
-    FragmentState, ImageCopyTexture, ImageDataLayout, MultisampleState, Origin3d, PipelineLayout,
-    PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor,
-    Sampler, SamplerBindingType, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages, Texture, TextureAspect, TextureDescriptor, TextureDimension,
-    TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
-    TextureViewDimension, VertexFormat, VertexState,
+    BindingResource, BindingType, BlendState, BufferBindingType, ColorTargetState, ColorWrites,
+    DepthStencilState, Device, Extent3d, FilterMode, FragmentState, ImageCopyTexture,
+    ImageDataLayout, MultisampleState, Origin3d, PipelineLayout, PipelineLayoutDescriptor,
+    PrimitiveState, Queue, RenderPipeline, RenderPipelineDescriptor, Sampler, SamplerBindingType,
+    SamplerDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStages, Texture,
+    TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType,
+    TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, VertexFormat,
+    VertexState,
 };
 
 #[allow(dead_code)]
@@ -255,8 +255,6 @@ pub enum ColorMode {
 
 /// An atlas containing a cache of rasterized glyphs that can be rendered.
 pub struct TextAtlas {
-    pub(crate) params: Params,
-    pub(crate) params_buffer: Buffer,
     pub(crate) cached_pipelines: Vec<(
         MultisampleState,
         Option<DepthStencilState>,
@@ -264,6 +262,7 @@ pub struct TextAtlas {
     )>,
     pub(crate) bind_group: Arc<BindGroup>,
     pub(crate) bind_group_layout: BindGroupLayout,
+    pub(crate) text_render_bind_group_layout: BindGroupLayout,
     pub(crate) sampler: Sampler,
     pub(crate) color_atlas: InnerAtlas,
     pub(crate) mask_atlas: InnerAtlas,
@@ -340,16 +339,30 @@ impl TextAtlas {
             ],
         }];
 
-        println!("{}", size_of::<Params>() as u64);
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                BindGroupLayoutEntry {
+        let text_render_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[BindGroupLayoutEntry {
                     binding: 0,
                     visibility: ShaderStages::VERTEX,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: NonZeroU64::new(size_of::<Params>() as u64),
+                    },
+                    count: None,
+                }],
+                label: Some("glyphon text render bind group layout"),
+            });
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: TextureViewDimension::D2,
+                        sample_type: TextureSampleType::Float { filterable: true },
                     },
                     count: None,
                 },
@@ -365,31 +378,12 @@ impl TextAtlas {
                 },
                 BindGroupLayoutEntry {
                     binding: 2,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
-                        multisampled: false,
-                        view_dimension: TextureViewDimension::D2,
-                        sample_type: TextureSampleType::Float { filterable: true },
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 3,
                     visibility: ShaderStages::FRAGMENT,
                     ty: BindingType::Sampler(SamplerBindingType::Filtering),
                     count: None,
                 },
             ],
-            label: Some("glyphon bind group layout"),
-        });
-
-        let params = Params::default();
-
-        let params_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("glyphon params"),
-            size: size_of::<Params>() as u64,
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
+            label: Some("glyphon text atlas bind group layout"),
         });
 
         let color_atlas = InnerAtlas::new(
@@ -409,34 +403,29 @@ impl TextAtlas {
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: params_buffer.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
                     resource: BindingResource::TextureView(&color_atlas.texture_view),
                 },
                 BindGroupEntry {
-                    binding: 2,
+                    binding: 1,
                     resource: BindingResource::TextureView(&mask_atlas.texture_view),
                 },
                 BindGroupEntry {
-                    binding: 3,
+                    binding: 2,
                     resource: BindingResource::Sampler(&sampler),
                 },
             ],
-            label: Some("glyphon bind group"),
+            label: Some("glyphon text atlas bind group"),
         }));
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[&bind_group_layout],
+            bind_group_layouts: &[&text_render_bind_group_layout, &bind_group_layout],
             push_constant_ranges: &[],
         });
 
         Self {
-            params,
-            params_buffer,
             cached_pipelines: Vec::new(),
+            text_render_bind_group_layout,
             bind_group,
             bind_group_layout,
             sampler,
@@ -535,18 +524,14 @@ impl TextAtlas {
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: self.params_buffer.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
                     resource: BindingResource::TextureView(&self.color_atlas.texture_view),
                 },
                 BindGroupEntry {
-                    binding: 2,
+                    binding: 1,
                     resource: BindingResource::TextureView(&self.mask_atlas.texture_view),
                 },
                 BindGroupEntry {
-                    binding: 3,
+                    binding: 2,
                     resource: BindingResource::Sampler(&self.sampler),
                 },
             ],

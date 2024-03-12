@@ -22,13 +22,13 @@ struct Params {
 @group(0) @binding(0)
 var<uniform> params: Params;
 
-@group(0) @binding(1)
+@group(1) @binding(0)
 var color_atlas_texture: texture_2d<f32>;
 
-@group(0) @binding(2)
+@group(1) @binding(1)
 var mask_atlas_texture: texture_2d<f32>;
 
-@group(0) @binding(3)
+@group(1) @binding(2)
 var atlas_sampler: sampler;
 
 fn srgb_to_linear(c: f32) -> f32 {
@@ -69,7 +69,7 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
     var vert_output: VertexOutput;
 
     vert_output.position = vec4<f32>(
-        (vec3<f32>(vec2<f32>(pos), 1.0) * params.transform).xy,
+        (params.transform * vec3<f32>(vec2<f32>(pos), 1.0)).xy,
         in_vert.depth,
         1.0,
     );

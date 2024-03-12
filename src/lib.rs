@@ -111,10 +111,11 @@ impl From<Matrix> for Params {
             // wgsl matrix is column-major
             transform: std::array::from_fn(|idx| {
                 let row = idx % 4;
+                let col = idx / 4;
                 if row == 3 {
                     0.
                 } else {
-                    value.matrix[row][idx / 4]
+                    value.matrix[row][col]
                 }
             }),
         }

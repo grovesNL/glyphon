@@ -1,6 +1,6 @@
 use crate::{
     ColorMode, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError,
-    RenderError, Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
+    RenderError, Resolution, Screen, SwashCache, SwashContent, TextArea, TextAtlas,
 };
 use std::{iter, mem::size_of, slice, sync::Arc};
 use wgpu::{
@@ -16,7 +16,7 @@ pub struct TextRenderer {
     index_buffer: Buffer,
     index_buffer_size: u64,
     vertices_to_render: u32,
-    screen_resolution: Resolution,
+    screen: Screen,
     pipeline: Arc<RenderPipeline>,
 }
 
@@ -52,10 +52,10 @@ impl TextRenderer {
             index_buffer,
             index_buffer_size,
             vertices_to_render: 0,
-            screen_resolution: Resolution {
+            screen: Screen::Resolution(Resolution {
                 width: 0,
                 height: 0,
-            },
+            }),
             pipeline,
         }
     }
@@ -67,17 +67,17 @@ impl TextRenderer {
         queue: &Queue,
         font_system: &mut FontSystem,
         atlas: &mut TextAtlas,
-        screen_resolution: Resolution,
+        screen: Screen,
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
     ) -> Result<(), PrepareError> {
-        self.screen_resolution = screen_resolution;
+        self.screen = screen;
 
-        let atlas_current_resolution = { atlas.params.screen_resolution };
+        let current_params = self.screen.matrix().into();
 
-        if screen_resolution != atlas_current_resolution {
-            atlas.params.screen_resolution = screen_resolution;
+        if current_params != atlas.params {
+            atlas.params = current_params;
             queue.write_buffer(&atlas.params_buffer, 0, unsafe {
                 slice::from_raw_parts(
                     &atlas.params as *const Params as *const u8,
@@ -218,49 +218,51 @@ impl TextRenderer {
                     let mut width = details.width as i32;
                     let mut height = details.height as i32;
 
-                    let bounds_min_x = text_area.bounds.left.max(0);
-                    let bounds_min_y = text_area.bounds.top.max(0);
-                    let bounds_max_x = text_area.bounds.right.min(screen_resolution.width as i32);
-                    let bounds_max_y = text_area.bounds.bottom.min(screen_resolution.height as i32);
+                    if let Screen::Resolution(screen) = self.screen {
+                        let bounds_min_x = text_area.bounds.left.max(0);
+                        let bounds_min_y = text_area.bounds.top.max(0);
+                        let bounds_max_x = text_area.bounds.right.min(screen.width as i32);
+                        let bounds_max_y = text_area.bounds.bottom.min(screen.height as i32);
 
-                    // Starts beyond right edge or ends beyond left edge
-                    let max_x = x + width;
-                    if x > bounds_max_x || max_x < bounds_min_x {
-                        continue;
-                    }
+                        // Starts beyond right edge or ends beyond left edge
+                        let max_x = x + width;
+                        if x > bounds_max_x || max_x < bounds_min_x {
+                            continue;
+                        }
 
-                    // Starts beyond bottom edge or ends beyond top edge
-                    let max_y = y + height;
-                    if y > bounds_max_y || max_y < bounds_min_y {
-                        continue;
-                    }
+                        // Starts beyond bottom edge or ends beyond top edge
+                        let max_y = y + height;
+                        if y > bounds_max_y || max_y < bounds_min_y {
+                            continue;
+                        }
 
-                    // Clip left ege
-                    if x < bounds_min_x {
-                        let right_shift = bounds_min_x - x;
+                        // Clip left ege
+                        if x < bounds_min_x {
+                            let right_shift = bounds_min_x - x;
 
-                        x = bounds_min_x;
-                        width = max_x - bounds_min_x;
-                        atlas_x += right_shift as u16;
-                    }
+                            x = bounds_min_x;
+                            width = max_x - bounds_min_x;
+                            atlas_x += right_shift as u16;
+                        }
 
-                    // Clip right edge
-                    if x + width > bounds_max_x {
-                        width = bounds_max_x - x;
-                    }
+                        // Clip right edge
+                        if x + width > bounds_max_x {
+                            width = bounds_max_x - x;
+                        }
 
-                    // Clip top edge
-                    if y < bounds_min_y {
-                        let bottom_shift = bounds_min_y - y;
+                        // Clip top edge
+                        if y < bounds_min_y {
+                            let bottom_shift = bounds_min_y - y;
 
-                        y = bounds_min_y;
-                        height = max_y - bounds_min_y;
-                        atlas_y += bottom_shift as u16;
-                    }
+                            y = bounds_min_y;
+                            height = max_y - bounds_min_y;
+                            atlas_y += bottom_shift as u16;
+                        }
 
-                    // Clip bottom edge
-                    if y + height > bounds_max_y {
-                        height = bounds_max_y - y;
+                        // Clip bottom edge
+                        if y + height > bounds_max_y {
+                            height = bounds_max_y - y;
+                        }
                     }
 
                     let color = match glyph.color_opt {
@@ -368,7 +370,7 @@ impl TextRenderer {
         queue: &Queue,
         font_system: &mut FontSystem,
         atlas: &mut TextAtlas,
-        screen_resolution: Resolution,
+        screen: Screen,
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {
@@ -377,7 +379,7 @@ impl TextRenderer {
             queue,
             font_system,
             atlas,
-            screen_resolution,
+            screen,
             text_areas,
             cache,
             zero_depth,
@@ -396,7 +398,7 @@ impl TextRenderer {
 
         {
             // Validate that screen resolution hasn't changed since `prepare`
-            if self.screen_resolution != atlas.params.screen_resolution {
+            if Params::from(&self.screen) != atlas.params {
                 return Err(RenderError::ScreenResolutionChanged);
             }
         }

@@ -16,8 +16,7 @@ struct VertexOutput {
 };
 
 struct Params {
-    screen_resolution: vec2<u32>,
-    _pad: vec2<u32>,
+    transform: mat3x3<f32>,
 };
 
 @group(0) @binding(0)
@@ -70,7 +69,7 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
     var vert_output: VertexOutput;
 
     vert_output.position = vec4<f32>(
-        2.0 * vec2<f32>(pos) / vec2<f32>(params.screen_resolution) - 1.0,
+        (vec3<f32>(vec2<f32>(pos), 1.0) * params.transform).xy,
         in_vert.depth,
         1.0,
     );

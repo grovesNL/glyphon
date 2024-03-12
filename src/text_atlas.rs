@@ -1,6 +1,6 @@
 use crate::{
     text_render::ContentType, CacheKey, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus,
-    Params, Resolution, SwashCache,
+    Params, SwashCache,
 };
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
@@ -340,6 +340,7 @@ impl TextAtlas {
             ],
         }];
 
+        println!("{}", size_of::<Params>() as u64);
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 BindGroupLayoutEntry {
@@ -382,13 +383,7 @@ impl TextAtlas {
             label: Some("glyphon bind group layout"),
         });
 
-        let params = Params {
-            screen_resolution: Resolution {
-                width: 0,
-                height: 0,
-            },
-            _pad: [0, 0],
-        };
+        let params = Params::default();
 
         let params_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("glyphon params"),

@@ -1,6 +1,6 @@
 use glyphon::{
-    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea,
-    TextAtlas, TextBounds, TextRenderer,
+    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution, Screen, Shaping, SwashCache,
+    TextArea, TextAtlas, TextBounds, TextRenderer,
 };
 use wgpu::{
     CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
@@ -25,11 +25,13 @@ async fn run() {
     // Set up window
     let (width, height) = (800, 600);
     let event_loop = EventLoop::new().unwrap();
-    let window = Arc::new(WindowBuilder::new()
-        .with_inner_size(LogicalSize::new(width as f64, height as f64))
-        .with_title("glyphon hello world")
-        .build(&event_loop)
-        .unwrap());
+    let window = Arc::new(
+        WindowBuilder::new()
+            .with_inner_size(LogicalSize::new(width as f64, height as f64))
+            .with_title("glyphon hello world")
+            .build(&event_loop)
+            .unwrap(),
+    );
     let size = window.inner_size();
     let scale_factor = window.scale_factor();
 
@@ -51,7 +53,9 @@ async fn run() {
         .await
         .unwrap();
 
-    let surface = instance.create_surface(window.clone()).expect("Create surface");
+    let surface = instance
+        .create_surface(window.clone())
+        .expect("Create surface");
     let swapchain_format = TextureFormat::Bgra8UnormSrgb;
     let mut config = SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
@@ -101,10 +105,10 @@ async fn run() {
                                 &queue,
                                 &mut font_system,
                                 &mut atlas,
-                                Resolution {
+                                Screen::Resolution(Resolution {
                                     width: config.width,
                                     height: config.height,
-                                },
+                                }),
                                 [TextArea {
                                     buffer: &buffer,
                                     left: 10.0,

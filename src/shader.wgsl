@@ -47,25 +47,17 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
     let height = (in_vert.dim & 0xffff0000u) >> 16u;
     let color = in_vert.color;
     var uv = vec2<u32>(in_vert.uv & 0xffffu, (in_vert.uv & 0xffff0000u) >> 16u);
-    let v = in_vert.vertex_idx % 4u;
+    let v = in_vert.vertex_idx;
 
-    switch v {
-        case 1u: {
-            pos.x += i32(width);
-            uv.x += width;
-        }
-        case 2u: {
-            pos.x += i32(width);
-            pos.y += i32(height);
-            uv.x += width;
-            uv.y += height;
-        }
-        case 3u: {
-            pos.y += i32(height);
-            uv.y += height;
-        }
-        default: {}
-    }
+    let corner_position = vec2<u32>(
+        in_vert.vertex_idx & 1u,
+        (in_vert.vertex_idx >> 1u) & 1u,
+    );
+
+    let corner_offset = vec2<u32>(width, height) * corner_position;
+
+    uv = uv + corner_offset;
+    pos = pos + vec2<i32>(corner_offset);
 
     var vert_output: VertexOutput;
 

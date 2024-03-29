@@ -2,6 +2,7 @@ use glyphon::{
     Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,
     TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
+use std::sync::Arc;
 use wgpu::{
     CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
     InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PresentMode,
@@ -14,8 +15,6 @@ use winit::{
     event_loop::EventLoop,
     window::WindowBuilder,
 };
-
-use std::sync::Arc;
 
 fn main() {
     pollster::block_on(run());
@@ -109,10 +108,14 @@ async fn run() {
                             },
                         );
 
+                        let mut encoder = device
+                            .create_command_encoder(&CommandEncoderDescriptor { label: None });
+
                         text_renderer
                             .prepare(
                                 &device,
                                 &queue,
+                                &mut encoder,
                                 &mut font_system,
                                 &mut atlas,
                                 &viewport,
@@ -135,8 +138,6 @@ async fn run() {
 
                         let frame = surface.get_current_texture().unwrap();
                         let view = frame.texture.create_view(&TextureViewDescriptor::default());
-                        let mut encoder = device
-                            .create_command_encoder(&CommandEncoderDescriptor { label: None });
                         {
                             let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
                                 label: None,

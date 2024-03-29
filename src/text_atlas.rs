@@ -2,9 +2,13 @@ use crate::{
     text_render::ContentType, CacheKey, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus,
     Params, SwashCache,
 };
+use ahash::AHasher;
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
-use std::{borrow::Cow, collections::HashSet, mem::size_of, num::NonZeroU64, sync::Arc};
+use std::{
+    borrow::Cow, collections::HashSet, hash::BuildHasherDefault, mem::size_of, num::NonZeroU64,
+    sync::Arc,
+};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry,
     BindingResource, BindingType, BlendState, BufferBindingType, ColorTargetState, ColorWrites,
@@ -17,6 +21,8 @@ use wgpu::{
     VertexState,
 };
 
+type Hasher = BuildHasherDefault<AHasher>;
+
 #[allow(dead_code)]
 pub(crate) struct InnerAtlas {
     pub kind: Kind,
@@ -24,8 +30,8 @@ pub(crate) struct InnerAtlas {
     pub texture_view: TextureView,
     pub packer: BucketedAtlasAllocator,
     pub size: u32,
-    pub glyph_cache: LruCache<CacheKey, GlyphDetails>,
-    pub glyphs_in_use: HashSet<CacheKey>,
+    pub glyph_cache: LruCache<CacheKey, GlyphDetails, Hasher>,
+    pub glyphs_in_use: HashSet<CacheKey, Hasher>,
     pub max_texture_dimension_2d: u32,
 }
 
@@ -57,7 +63,7 @@ impl InnerAtlas {
         let texture_view = texture.create_view(&TextureViewDescriptor::default());
 
         let glyph_cache = LruCache::unbounded();
-        let glyphs_in_use = HashSet::new();
+        let glyphs_in_use = HashSet::with_hasher(Hasher::default());
 
         Self {
             kind,

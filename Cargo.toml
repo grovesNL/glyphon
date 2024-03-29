@@ -12,6 +12,7 @@ wgpu = { version = "0.19", default-features = false, features = ["wgsl"] }
 etagere = "0.2.10"
 cosmic-text = "0.11"
 lru = "0.12.1"
+ahash = "0.8"
 
 [dev-dependencies]
 winit = { version = "0.29.10", features = ["rwh_05"] }

@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0 OR Zlib"
 wgpu = { version = "0.19", default-features = false, features = ["wgsl"] }
 etagere = "0.2.10"
 cosmic-text = "0.11"
-lru = "0.12.1"
+lru = { version = "0.12.1", default-features = false }
 ahash = "0.8"
 
 [dev-dependencies]

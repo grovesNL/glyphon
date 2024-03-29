@@ -62,7 +62,7 @@ impl InnerAtlas {
 
         let texture_view = texture.create_view(&TextureViewDescriptor::default());
 
-        let glyph_cache = LruCache::unbounded();
+        let glyph_cache = LruCache::unbounded_with_hasher(Hasher::default());
         let glyphs_in_use = HashSet::with_hasher(Hasher::default());
 
         Self {

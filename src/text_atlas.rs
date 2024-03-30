@@ -2,9 +2,9 @@ use crate::{
     text_render::ContentType, CacheKey, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus,
     Params, SwashCache,
 };
-use ahash::AHasher;
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
+use rustc_hash::FxHasher;
 use std::{
     borrow::Cow, collections::HashSet, hash::BuildHasherDefault, mem::size_of, num::NonZeroU64,
     sync::Arc,
@@ -21,7 +21,7 @@ use wgpu::{
     VertexState,
 };
 
-type Hasher = BuildHasherDefault<AHasher>;
+type Hasher = BuildHasherDefault<FxHasher>;
 
 #[allow(dead_code)]
 pub(crate) struct InnerAtlas {

@@ -13,7 +13,6 @@ etagere = "0.2.10"
 cosmic-text = "0.11"
 lru = { version = "0.12.1", default-features = false }
 rustc-hash = "1.1"
-once_cell = "1.19"
 
 [dev-dependencies]
 winit = { version = "0.29.10", features = ["rwh_05"] }

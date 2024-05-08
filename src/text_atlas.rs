@@ -1,6 +1,5 @@
 use crate::{
-    text_render::ContentType, CacheKey, FontSystem, GlyphDetails, GpuCacheStatus, Pipeline,
-    SwashCache,
+    text_render::ContentType, Cache, CacheKey, FontSystem, GlyphDetails, GpuCacheStatus, SwashCache,
 };
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
@@ -252,7 +251,7 @@ pub enum ColorMode {
 
 /// An atlas containing a cache of rasterized glyphs that can be rendered.
 pub struct TextAtlas {
-    pipeline: Pipeline,
+    cache: Cache,
     pub(crate) bind_group: BindGroup,
     pub(crate) color_atlas: InnerAtlas,
     pub(crate) mask_atlas: InnerAtlas,
@@ -262,15 +261,15 @@ pub struct TextAtlas {
 
 impl TextAtlas {
     /// Creates a new [`TextAtlas`].
-    pub fn new(device: &Device, queue: &Queue, pipeline: &Pipeline, format: TextureFormat) -> Self {
-        Self::with_color_mode(device, queue, pipeline, format, ColorMode::Accurate)
+    pub fn new(device: &Device, queue: &Queue, cache: &Cache, format: TextureFormat) -> Self {
+        Self::with_color_mode(device, queue, cache, format, ColorMode::Accurate)
     }
 
     /// Creates a new [`TextAtlas`] with the given [`ColorMode`].
     pub fn with_color_mode(
         device: &Device,
         queue: &Queue,
-        pipeline: &Pipeline,
+        cache: &Cache,
         format: TextureFormat,
         color_mode: ColorMode,
     ) -> Self {
@@ -286,14 +285,14 @@ impl TextAtlas {
         );
         let mask_atlas = InnerAtlas::new(device, queue, Kind::Mask);
 
-        let bind_group = pipeline.create_atlas_bind_group(
+        let bind_group = cache.create_atlas_bind_group(
             device,
             &color_atlas.texture_view,
             &mask_atlas.texture_view,
         );
 
         Self {
-            pipeline: pipeline.clone(),
+            cache: cache.clone(),
             bind_group,
             color_atlas,
             mask_atlas,
@@ -347,16 +346,16 @@ impl TextAtlas {
         multisample: MultisampleState,
         depth_stencil: Option<DepthStencilState>,
     ) -> Arc<RenderPipeline> {
-        self.pipeline
-            .get_or_create(device, self.format, multisample, depth_stencil)
+        self.cache
+            .get_or_create_pipeline(device, self.format, multisample, depth_stencil)
     }
 
     pub(crate) fn create_uniforms_bind_group(&self, device: &Device, buffer: &Buffer) -> BindGroup {
-        self.pipeline.create_uniforms_bind_group(device, buffer)
+        self.cache.create_uniforms_bind_group(device, buffer)
     }
 
     fn rebind(&mut self, device: &wgpu::Device) {
-        self.bind_group = self.pipeline.create_atlas_bind_group(
+        self.bind_group = self.cache.create_atlas_bind_group(
             device,
             &self.color_atlas.texture_view,
             &self.mask_atlas.texture_view,

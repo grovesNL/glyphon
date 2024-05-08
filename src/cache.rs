@@ -17,7 +17,7 @@ use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone)]
-pub struct Pipeline(Arc<Inner>);
+pub struct Cache(Arc<Inner>);
 
 #[derive(Debug)]
 struct Inner {
@@ -37,7 +37,7 @@ struct Inner {
     >,
 }
 
-impl Pipeline {
+impl Cache {
     pub fn new(device: &Device) -> Self {
         let sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("glyphon sampler"),
@@ -191,7 +191,7 @@ impl Pipeline {
         })
     }
 
-    pub(crate) fn get_or_create(
+    pub(crate) fn get_or_create_pipeline(
         &self,
         device: &Device,
         format: TextureFormat,

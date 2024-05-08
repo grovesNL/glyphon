@@ -1,6 +1,6 @@
 use glyphon::{
-    Attrs, Buffer, Color, Family, FontSystem, Metrics, Pipeline, Resolution, Shaping, SwashCache,
-    TextArea, TextAtlas, TextBounds, TextRenderer,
+    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea,
+    TextAtlas, TextBounds, TextRenderer,
 };
 use wgpu::{
     CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
@@ -72,8 +72,7 @@ async fn run() {
     // Set up text renderer
     let mut font_system = FontSystem::new();
     let mut cache = SwashCache::new();
-    let pipeline = Pipeline::new(&device);
-    let mut atlas = TextAtlas::new(&device, &queue, &pipeline, swapchain_format);
+    let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
     let mut text_renderer =
         TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
     let mut buffer = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));

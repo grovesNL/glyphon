@@ -10,10 +10,10 @@ mod text_atlas;
 mod text_render;
 
 pub use error::{PrepareError, RenderError};
-pub use pipeline::Pipeline;
 pub use text_atlas::{ColorMode, TextAtlas};
 pub use text_render::TextRenderer;
 
+use pipeline::Pipeline;
 use text_render::ContentType;
 
 // Re-export all top-level types from `cosmic-text` for convenience.

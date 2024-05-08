@@ -4,6 +4,7 @@ use crate::{
 };
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
+use once_cell::sync::OnceCell;
 use rustc_hash::FxHasher;
 use std::{collections::HashSet, hash::BuildHasherDefault, sync::Arc};
 use wgpu::{
@@ -262,18 +263,20 @@ pub struct TextAtlas {
 
 impl TextAtlas {
     /// Creates a new [`TextAtlas`].
-    pub fn new(device: &Device, queue: &Queue, pipeline: &Pipeline, format: TextureFormat) -> Self {
-        Self::with_color_mode(device, queue, pipeline, format, ColorMode::Accurate)
+    pub fn new(device: &Device, queue: &Queue, format: TextureFormat) -> Self {
+        Self::with_color_mode(device, queue, format, ColorMode::Accurate)
     }
 
     /// Creates a new [`TextAtlas`] with the given [`ColorMode`].
     pub fn with_color_mode(
         device: &Device,
         queue: &Queue,
-        pipeline: &Pipeline,
         format: TextureFormat,
         color_mode: ColorMode,
     ) -> Self {
+        static PIPELINE: OnceCell<Pipeline> = OnceCell::new();
+        let pipeline = PIPELINE.get_or_init(|| Pipeline::new(device));
+
         let color_atlas = InnerAtlas::new(
             device,
             queue,

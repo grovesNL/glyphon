@@ -4,10 +4,12 @@
 //! [cosmic-text]: https://github.com/pop-os/cosmic-text
 //! [etagere]: https://github.com/nical/etagere
 
+mod cache;
 mod error;
 mod text_atlas;
 mod text_render;
 
+pub use cache::Cache;
 pub use error::{PrepareError, RenderError};
 pub use text_atlas::{ColorMode, TextAtlas};
 pub use text_render::TextRenderer;

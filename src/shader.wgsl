@@ -21,16 +21,16 @@ struct Params {
 };
 
 @group(0) @binding(0)
-var<uniform> params: Params;
-
-@group(1) @binding(0)
 var color_atlas_texture: texture_2d<f32>;
 
-@group(1) @binding(1)
+@group(0) @binding(1)
 var mask_atlas_texture: texture_2d<f32>;
 
-@group(1) @binding(2)
+@group(0) @binding(2)
 var atlas_sampler: sampler;
+
+@group(1) @binding(0)
+var<uniform> params: Params;
 
 fn srgb_to_linear(c: f32) -> f32 {
     if c <= 0.04045 {

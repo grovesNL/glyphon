@@ -4,9 +4,9 @@ use crate::{
 };
 use std::{iter, mem::size_of, slice, sync::Arc};
 use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, Buffer, BufferDescriptor, BufferUsages, DepthStencilState,
-    Device, Extent3d, ImageCopyTexture, ImageDataLayout, IndexFormat, MultisampleState, Origin3d,
-    Queue, RenderPass, RenderPipeline, TextureAspect, COPY_BUFFER_ALIGNMENT,
+    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
+    ImageDataLayout, IndexFormat, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline,
+    TextureAspect, COPY_BUFFER_ALIGNMENT,
 };
 
 /// A text renderer that uses cached glyphs to render text into an existing render pass.
@@ -48,8 +48,6 @@ impl TextRenderer {
             mapped_at_creation: false,
         });
 
-        let pipeline = atlas.get_or_create_pipeline(device, multisample, depth_stencil);
-
         let params = Params {
             screen_resolution: Resolution {
                 width: 0,
@@ -65,14 +63,8 @@ impl TextRenderer {
             mapped_at_creation: false,
         });
 
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            layout: &atlas.text_render_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: params_buffer.as_entire_binding(),
-            }],
-            label: Some("glyphon text render bind group"),
-        });
+        let pipeline = atlas.get_or_create_pipeline(device, multisample, depth_stencil);
+        let bind_group = atlas.create_uniforms_bind_group(device, &params_buffer);
 
         Self {
             params,
@@ -103,6 +95,7 @@ impl TextRenderer {
     ) -> Result<(), PrepareError> {
         if self.params.screen_resolution != screen_resolution {
             self.params.screen_resolution = screen_resolution;
+
             queue.write_buffer(&self.params_buffer, 0, unsafe {
                 slice::from_raw_parts(
                     &self.params as *const Params as *const u8,
@@ -420,8 +413,8 @@ impl TextRenderer {
         }
 
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &self.bind_group, &[]);
-        pass.set_bind_group(1, &atlas.bind_group, &[]);
+        pass.set_bind_group(0, &atlas.bind_group, &[]);
+        pass.set_bind_group(1, &self.bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint32);
         pass.draw_indexed(0..self.vertices_to_render, 0, 0..1);

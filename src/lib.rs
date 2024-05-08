@@ -5,10 +5,12 @@
 //! [etagere]: https://github.com/nical/etagere
 
 mod error;
+mod pipeline;
 mod text_atlas;
 mod text_render;
 
 pub use error::{PrepareError, RenderError};
+pub use pipeline::Pipeline;
 pub use text_atlas::{ColorMode, TextAtlas};
 pub use text_render::TextRenderer;
 

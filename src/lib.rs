@@ -8,11 +8,13 @@ mod cache;
 mod error;
 mod text_atlas;
 mod text_render;
+mod viewport;
 
 pub use cache::Cache;
 pub use error::{PrepareError, RenderError};
 pub use text_atlas::{ColorMode, TextAtlas};
 pub use text_render::TextRenderer;
+pub use viewport::Viewport;
 
 use text_render::ContentType;
 

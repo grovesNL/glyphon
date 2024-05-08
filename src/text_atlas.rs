@@ -6,7 +6,7 @@ use lru::LruCache;
 use rustc_hash::FxHasher;
 use std::{collections::HashSet, hash::BuildHasherDefault, sync::Arc};
 use wgpu::{
-    BindGroup, Buffer, DepthStencilState, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
+    BindGroup, DepthStencilState, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
     MultisampleState, Origin3d, Queue, RenderPipeline, Texture, TextureAspect, TextureDescriptor,
     TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
 };
@@ -348,10 +348,6 @@ impl TextAtlas {
     ) -> Arc<RenderPipeline> {
         self.cache
             .get_or_create_pipeline(device, self.format, multisample, depth_stencil)
-    }
-
-    pub(crate) fn create_uniforms_bind_group(&self, device: &Device, buffer: &Buffer) -> BindGroup {
-        self.cache.create_uniforms_bind_group(device, buffer)
     }
 
     fn rebind(&mut self, device: &wgpu::Device) {

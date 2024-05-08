@@ -1,6 +1,6 @@
 use glyphon::{
     Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,
-    TextArea, TextAtlas, TextBounds, TextRenderer,
+    TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
 use wgpu::{
     CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
@@ -73,6 +73,7 @@ async fn run() {
     let mut font_system = FontSystem::new();
     let mut swash_cache = SwashCache::new();
     let cache = Cache::new(&device);
+    let mut viewport = Viewport::new(&device, &cache);
     let mut atlas = TextAtlas::new(&device, &queue, &cache, swapchain_format);
     let mut text_renderer =
         TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
@@ -100,16 +101,21 @@ async fn run() {
                         window.request_redraw();
                     }
                     WindowEvent::RedrawRequested => {
+                        viewport.update(
+                            &queue,
+                            Resolution {
+                                width: config.width,
+                                height: config.height,
+                            },
+                        );
+
                         text_renderer
                             .prepare(
                                 &device,
                                 &queue,
                                 &mut font_system,
                                 &mut atlas,
-                                Resolution {
-                                    width: config.width,
-                                    height: config.height,
-                                },
+                                &viewport,
                                 [TextArea {
                                     buffer: &buffer,
                                     left: 10.0,
@@ -147,7 +153,7 @@ async fn run() {
                                 occlusion_query_set: None,
                             });
 
-                            text_renderer.render(&atlas, &mut pass).unwrap();
+                            text_renderer.render(&atlas, &viewport, &mut pass).unwrap();
                         }
 
                         queue.submit(Some(encoder.finish()));

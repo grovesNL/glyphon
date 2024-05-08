@@ -1,8 +1,8 @@
 use crate::{
-    ColorMode, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, Params, PrepareError,
-    RenderError, Resolution, SwashCache, SwashContent, TextArea, TextAtlas,
+    ColorMode, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, PrepareError, RenderError,
+    SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
 };
-use std::{iter, mem::size_of, slice, sync::Arc};
+use std::{iter, slice, sync::Arc};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
     ImageDataLayout, IndexFormat, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline,
@@ -11,15 +11,12 @@ use wgpu::{
 
 /// A text renderer that uses cached glyphs to render text into an existing render pass.
 pub struct TextRenderer {
-    params: Params,
-    params_buffer: Buffer,
     vertex_buffer: Buffer,
     vertex_buffer_size: u64,
     index_buffer: Buffer,
     index_buffer_size: u64,
     vertices_to_render: u32,
     pipeline: Arc<RenderPipeline>,
-    bind_group: wgpu::BindGroup,
     glyph_vertices: Vec<GlyphToRender>,
     glyph_indices: Vec<u32>,
 }
@@ -48,34 +45,15 @@ impl TextRenderer {
             mapped_at_creation: false,
         });
 
-        let params = Params {
-            screen_resolution: Resolution {
-                width: 0,
-                height: 0,
-            },
-            _pad: [0, 0],
-        };
-
-        let params_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("glyphon params"),
-            size: size_of::<Params>() as u64,
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
         let pipeline = atlas.get_or_create_pipeline(device, multisample, depth_stencil);
-        let bind_group = atlas.create_uniforms_bind_group(device, &params_buffer);
 
         Self {
-            params,
-            params_buffer,
             vertex_buffer,
             vertex_buffer_size,
             index_buffer,
             index_buffer_size,
             vertices_to_render: 0,
             pipeline,
-            bind_group,
             glyph_vertices: Vec::new(),
             glyph_indices: Vec::new(),
         }
@@ -88,25 +66,16 @@ impl TextRenderer {
         queue: &Queue,
         font_system: &mut FontSystem,
         atlas: &mut TextAtlas,
-        screen_resolution: Resolution,
+        viewport: &Viewport,
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
     ) -> Result<(), PrepareError> {
-        if self.params.screen_resolution != screen_resolution {
-            self.params.screen_resolution = screen_resolution;
-
-            queue.write_buffer(&self.params_buffer, 0, unsafe {
-                slice::from_raw_parts(
-                    &self.params as *const Params as *const u8,
-                    size_of::<Params>(),
-                )
-            });
-        }
-
         self.glyph_vertices.clear();
         self.glyph_indices.clear();
         let mut glyphs_added = 0;
+
+        let resolution = viewport.resolution();
 
         for text_area in text_areas {
             for run in text_area.buffer.layout_runs() {
@@ -238,8 +207,8 @@ impl TextRenderer {
 
                     let bounds_min_x = text_area.bounds.left.max(0);
                     let bounds_min_y = text_area.bounds.top.max(0);
-                    let bounds_max_x = text_area.bounds.right.min(screen_resolution.width as i32);
-                    let bounds_max_y = text_area.bounds.bottom.min(screen_resolution.height as i32);
+                    let bounds_max_x = text_area.bounds.right.min(resolution.width as i32);
+                    let bounds_max_y = text_area.bounds.bottom.min(resolution.height as i32);
 
                     // Starts beyond right edge or ends beyond left edge
                     let max_x = x + width;
@@ -386,7 +355,7 @@ impl TextRenderer {
         queue: &Queue,
         font_system: &mut FontSystem,
         atlas: &mut TextAtlas,
-        screen_resolution: Resolution,
+        viewport: &Viewport,
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
     ) -> Result<(), PrepareError> {
@@ -395,7 +364,7 @@ impl TextRenderer {
             queue,
             font_system,
             atlas,
-            screen_resolution,
+            viewport,
             text_areas,
             cache,
             zero_depth,
@@ -406,6 +375,7 @@ impl TextRenderer {
     pub fn render<'pass>(
         &'pass self,
         atlas: &'pass TextAtlas,
+        viewport: &'pass Viewport,
         pass: &mut RenderPass<'pass>,
     ) -> Result<(), RenderError> {
         if self.vertices_to_render == 0 {
@@ -414,7 +384,7 @@ impl TextRenderer {
 
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &atlas.bind_group, &[]);
-        pass.set_bind_group(1, &self.bind_group, &[]);
+        pass.set_bind_group(1, &viewport.bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint32);
         pass.draw_indexed(0..self.vertices_to_render, 0, 0..1);

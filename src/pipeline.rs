@@ -11,7 +11,6 @@ use wgpu::{
 };
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::mem;
 use std::num::NonZeroU64;
 use std::ops::Deref;
@@ -29,7 +28,12 @@ struct Inner {
     uniforms_layout: BindGroupLayout,
     pipeline_layout: PipelineLayout,
     cache: RwLock<
-        HashMap<(TextureFormat, MultisampleState, Option<DepthStencilState>), Arc<RenderPipeline>>,
+        Vec<(
+            TextureFormat,
+            MultisampleState,
+            Option<DepthStencilState>,
+            Arc<RenderPipeline>,
+        )>,
     >,
 }
 
@@ -146,7 +150,7 @@ impl Pipeline {
             uniforms_layout,
             atlas_layout,
             pipeline_layout,
-            cache: RwLock::new(HashMap::new()),
+            cache: RwLock::new(Vec::new()),
         }))
     }
 
@@ -202,12 +206,14 @@ impl Pipeline {
             ..
         } = self.0.deref();
 
+        let mut cache = cache.write().expect("Write pipeline cache");
+
         cache
-            .write()
-            .expect("Write to pipeline cache")
-            .entry((format, multisample, depth_stencil))
-            .or_insert_with_key(|(format, multisample, depth_stencil)| {
-                Arc::new(device.create_render_pipeline(&RenderPipelineDescriptor {
+            .iter()
+            .find(|(fmt, ms, ds, _)| fmt == &format && ms == &multisample && ds == &depth_stencil)
+            .map(|(_, _, _, p)| Arc::clone(p))
+            .unwrap_or_else(|| {
+                let pipeline = Arc::new(device.create_render_pipeline(&RenderPipelineDescriptor {
                     label: Some("glyphon pipeline"),
                     layout: Some(pipeline_layout),
                     vertex: VertexState {
@@ -220,7 +226,7 @@ impl Pipeline {
                         module: shader,
                         entry_point: "fs_main",
                         targets: &[Some(ColorTargetState {
-                            format: *format,
+                            format,
                             blend: Some(BlendState::ALPHA_BLENDING),
                             write_mask: ColorWrites::default(),
                         })],
@@ -228,9 +234,13 @@ impl Pipeline {
                     }),
                     primitive: PrimitiveState::default(),
                     depth_stencil: depth_stencil.clone(),
-                    multisample: *multisample,
+                    multisample,
                     multiview: None,
-                }))
+                }));
+
+                cache.push((format, multisample, depth_stencil, pipeline.clone()));
+
+                pipeline
             })
             .clone()
     }

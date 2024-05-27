@@ -2,6 +2,7 @@ use glyphon::{
     Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,
     TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
+use std::sync::Arc;
 use wgpu::{
     CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Features, Instance,
     InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PresentMode,
@@ -14,8 +15,6 @@ use winit::{
     event_loop::EventLoop,
     window::WindowBuilder,
 };
-
-use std::sync::Arc;
 
 fn main() {
     pollster::block_on(run());

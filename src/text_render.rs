@@ -2,7 +2,7 @@ use crate::{
     ColorMode, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, PrepareError, RenderError,
     SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
 };
-use std::{slice, sync::Arc};
+use std::{num::NonZeroU64, slice, sync::Arc};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
     ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,
@@ -269,9 +269,16 @@ impl TextRenderer {
                 std::mem::size_of_val(vertices),
             )
         };
+        let vertices_size = vertices_raw.len() as u64;
 
-        if self.vertex_buffer_size >= vertices_raw.len() as u64 {
-            queue.write_buffer(&self.vertex_buffer, 0, vertices_raw);
+        if self.vertex_buffer_size >= vertices_size {
+            if let Some(mut view) = queue.write_buffer_with(
+                &self.vertex_buffer,
+                0,
+                NonZeroU64::new(vertices_size).expect("buffer size of 0"),
+            ) {
+                view.copy_from_slice(vertices_raw);
+            }
         } else {
             self.vertex_buffer.destroy();
 

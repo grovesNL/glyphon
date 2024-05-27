@@ -2,17 +2,18 @@ use crate::{
     ColorMode, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, PrepareError, RenderError,
     SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
 };
-use std::{slice, sync::Arc};
+use std::{num::NonZeroU64, slice, sync::Arc};
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
-    ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,
-    COPY_BUFFER_ALIGNMENT,
+    util::StagingBelt, Buffer, BufferDescriptor, BufferUsages, CommandEncoder, DepthStencilState,
+    Device, Extent3d, ImageCopyTexture, ImageDataLayout, MultisampleState, Origin3d, Queue,
+    RenderPass, RenderPipeline, TextureAspect, COPY_BUFFER_ALIGNMENT,
 };
 
 /// A text renderer that uses cached glyphs to render text into an existing render pass.
 pub struct TextRenderer {
     vertex_buffer: Buffer,
     vertex_buffer_size: u64,
+    staging_belt: StagingBelt,
     pipeline: Arc<RenderPipeline>,
     glyph_vertices: Vec<GlyphToRender>,
 }
@@ -38,6 +39,7 @@ impl TextRenderer {
         Self {
             vertex_buffer,
             vertex_buffer_size,
+            staging_belt: StagingBelt::new(vertex_buffer_size),
             pipeline,
             glyph_vertices: Vec::new(),
         }
@@ -48,6 +50,7 @@ impl TextRenderer {
         &mut self,
         device: &Device,
         queue: &Queue,
+        encoder: &mut CommandEncoder,
         font_system: &mut FontSystem,
         atlas: &mut TextAtlas,
         viewport: &Viewport,
@@ -56,6 +59,7 @@ impl TextRenderer {
         mut metadata_to_depth: impl FnMut(usize) -> f32,
     ) -> Result<(), PrepareError> {
         self.glyph_vertices.clear();
+        self.staging_belt.recall();
 
         let resolution = viewport.resolution();
 
@@ -271,7 +275,16 @@ impl TextRenderer {
         };
 
         if self.vertex_buffer_size >= vertices_raw.len() as u64 {
-            queue.write_buffer(&self.vertex_buffer, 0, vertices_raw);
+            self.staging_belt
+                .write_buffer(
+                    encoder,
+                    &self.vertex_buffer,
+                    0,
+                    NonZeroU64::new(vertices_raw.len() as u64).expect("Non-empty vertices"),
+                    device,
+                )
+                .copy_from_slice(vertices_raw);
+            self.staging_belt.finish();
         } else {
             self.vertex_buffer.destroy();
 
@@ -284,6 +297,9 @@ impl TextRenderer {
 
             self.vertex_buffer = buffer;
             self.vertex_buffer_size = buffer_size;
+
+            self.staging_belt.finish();
+            self.staging_belt = StagingBelt::new(buffer_size);
         }
 
         Ok(())
@@ -293,6 +309,7 @@ impl TextRenderer {
         &mut self,
         device: &Device,
         queue: &Queue,
+        encoder: &mut CommandEncoder,
         font_system: &mut FontSystem,
         atlas: &mut TextAtlas,
         viewport: &Viewport,
@@ -302,6 +319,7 @@ impl TextRenderer {
         self.prepare_with_depth(
             device,
             queue,
+            encoder,
             font_system,
             atlas,
             viewport,

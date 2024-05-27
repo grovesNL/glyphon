@@ -2,23 +2,19 @@ use crate::{
     ColorMode, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, PrepareError, RenderError,
     SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
 };
-use std::{iter, slice, sync::Arc};
+use std::{slice, sync::Arc};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
-    ImageDataLayout, IndexFormat, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline,
-    TextureAspect, COPY_BUFFER_ALIGNMENT,
+    ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,
+    COPY_BUFFER_ALIGNMENT,
 };
 
 /// A text renderer that uses cached glyphs to render text into an existing render pass.
 pub struct TextRenderer {
     vertex_buffer: Buffer,
     vertex_buffer_size: u64,
-    index_buffer: Buffer,
-    index_buffer_size: u64,
-    vertices_to_render: u32,
     pipeline: Arc<RenderPipeline>,
     glyph_vertices: Vec<GlyphToRender>,
-    glyph_indices: Vec<u32>,
 }
 
 impl TextRenderer {
@@ -37,25 +33,13 @@ impl TextRenderer {
             mapped_at_creation: false,
         });
 
-        let index_buffer_size = next_copy_buffer_size(4096);
-        let index_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("glyphon indices"),
-            size: index_buffer_size,
-            usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
         let pipeline = atlas.get_or_create_pipeline(device, multisample, depth_stencil);
 
         Self {
             vertex_buffer,
             vertex_buffer_size,
-            index_buffer,
-            index_buffer_size,
-            vertices_to_render: 0,
             pipeline,
             glyph_vertices: Vec::new(),
-            glyph_indices: Vec::new(),
         }
     }
 
@@ -72,8 +56,6 @@ impl TextRenderer {
         mut metadata_to_depth: impl FnMut(usize) -> f32,
     ) -> Result<(), PrepareError> {
         self.glyph_vertices.clear();
-        self.glyph_indices.clear();
-        let mut glyphs_added = 0;
 
         let resolution = viewport.resolution();
 
@@ -257,43 +239,25 @@ impl TextRenderer {
 
                     let depth = metadata_to_depth(glyph.metadata);
 
-                    self.glyph_vertices.extend(
-                        iter::repeat(GlyphToRender {
-                            pos: [x, y],
-                            dim: [width as u16, height as u16],
-                            uv: [atlas_x, atlas_y],
-                            color: color.0,
-                            content_type_with_srgb: [
-                                content_type as u16,
-                                match atlas.color_mode {
-                                    ColorMode::Accurate => TextColorConversion::ConvertToLinear,
-                                    ColorMode::Web => TextColorConversion::None,
-                                } as u16,
-                            ],
-                            depth,
-                        })
-                        .take(4),
-                    );
-
-                    let start = 4 * glyphs_added as u32;
-                    self.glyph_indices.extend([
-                        start,
-                        start + 1,
-                        start + 2,
-                        start,
-                        start + 2,
-                        start + 3,
-                    ]);
-
-                    glyphs_added += 1;
+                    self.glyph_vertices.push(GlyphToRender {
+                        pos: [x, y],
+                        dim: [width as u16, height as u16],
+                        uv: [atlas_x, atlas_y],
+                        color: color.0,
+                        content_type_with_srgb: [
+                            content_type as u16,
+                            match atlas.color_mode {
+                                ColorMode::Accurate => TextColorConversion::ConvertToLinear,
+                                ColorMode::Web => TextColorConversion::None,
+                            } as u16,
+                        ],
+                        depth,
+                    });
                 }
             }
         }
 
-        const VERTICES_PER_GLYPH: u32 = 6;
-        self.vertices_to_render = glyphs_added as u32 * VERTICES_PER_GLYPH;
-
-        let will_render = glyphs_added > 0;
+        let will_render = !self.glyph_vertices.is_empty();
         if !will_render {
             return Ok(());
         }
@@ -320,30 +284,6 @@ impl TextRenderer {
 
             self.vertex_buffer = buffer;
             self.vertex_buffer_size = buffer_size;
-        }
-
-        let indices = self.glyph_indices.as_slice();
-        let indices_raw = unsafe {
-            slice::from_raw_parts(
-                indices as *const _ as *const u8,
-                std::mem::size_of_val(indices),
-            )
-        };
-
-        if self.index_buffer_size >= indices_raw.len() as u64 {
-            queue.write_buffer(&self.index_buffer, 0, indices_raw);
-        } else {
-            self.index_buffer.destroy();
-
-            let (buffer, buffer_size) = create_oversized_buffer(
-                device,
-                Some("glyphon indices"),
-                indices_raw,
-                BufferUsages::INDEX | BufferUsages::COPY_DST,
-            );
-
-            self.index_buffer = buffer;
-            self.index_buffer_size = buffer_size;
         }
 
         Ok(())
@@ -378,7 +318,7 @@ impl TextRenderer {
         viewport: &'pass Viewport,
         pass: &mut RenderPass<'pass>,
     ) -> Result<(), RenderError> {
-        if self.vertices_to_render == 0 {
+        if self.glyph_vertices.is_empty() {
             return Ok(());
         }
 
@@ -386,8 +326,7 @@ impl TextRenderer {
         pass.set_bind_group(0, &atlas.bind_group, &[]);
         pass.set_bind_group(1, &viewport.bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint32);
-        pass.draw_indexed(0..self.vertices_to_render, 0, 0..1);
+        pass.draw(0..4, 0..self.glyph_vertices.len() as u32);
 
         Ok(())
     }

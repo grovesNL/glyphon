@@ -302,6 +302,7 @@ impl TextRenderer {
         Ok(())
     }
 
+    /// Prepares all of the provided text areas for rendering.
     pub fn prepare<'a>(
         &mut self,
         device: &Device,
@@ -354,17 +355,17 @@ pub enum ContentType {
 
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-enum TextColorConversion {
+pub(crate) enum TextColorConversion {
     None = 0,
     ConvertToLinear = 1,
 }
 
-fn next_copy_buffer_size(size: u64) -> u64 {
+pub(crate) fn next_copy_buffer_size(size: u64) -> u64 {
     let align_mask = COPY_BUFFER_ALIGNMENT - 1;
     ((size.next_power_of_two() + align_mask) & !align_mask).max(COPY_BUFFER_ALIGNMENT)
 }
 
-fn create_oversized_buffer(
+pub(crate) fn create_oversized_buffer(
     device: &Device,
     label: Option<&str>,
     contents: &[u8],

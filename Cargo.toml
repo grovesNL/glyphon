@@ -7,14 +7,23 @@ homepage = "https://github.com/grovesNL/glyphon.git"
 repository = "https://github.com/grovesNL/glyphon"
 license = "MIT OR Apache-2.0 OR Zlib"
 
+[features]
+svg-icons = ["dep:resvg"]
+
 [dependencies]
 wgpu = { version = "22", default-features = false, features = ["wgsl"] }
 etagere = "0.2.10"
 cosmic-text = "0.12"
 lru = { version = "0.12.1", default-features = false }
 rustc-hash = "2.0"
+resvg = { version = "0.42", default-features = false, optional = true }
 
 [dev-dependencies]
 winit = "0.30.3"
 wgpu = "22"
 pollster = "0.3.0"
+
+[[example]]
+name = "svg-icons"
+path = "examples/svg-icons.rs"
+required-features = ["svg-icons"]

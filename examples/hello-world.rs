@@ -74,7 +74,11 @@ async fn run() {
     let physical_width = (width as f64 * scale_factor) as f32;
     let physical_height = (height as f64 * scale_factor) as f32;
 
-    buffer.set_size(&mut font_system, physical_width, physical_height);
+    buffer.set_size(
+        &mut font_system,
+        Some(physical_width),
+        Some(physical_height),
+    );
     buffer.set_text(&mut font_system, "Hello world! 👋\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
     buffer.shape_until_scroll(&mut font_system, false);
 

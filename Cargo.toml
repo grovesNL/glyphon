@@ -8,6 +8,7 @@ repository = "https://github.com/grovesNL/glyphon"
 license = "MIT OR Apache-2.0 OR Zlib"
 
 [features]
+default = ["svg-icons"]
 svg-icons = ["dep:resvg"]
 
 [dependencies]

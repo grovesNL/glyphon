@@ -1,5 +1,5 @@
 use glyphon::{
-    icon::{IconDesc, IconRenderer, IconSourceID, IconSystem, SvgSource},
+    icon::{IconDesc, IconRenderer, IconSourceID, IconSystem},
     Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,
     TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
@@ -96,14 +96,12 @@ async fn run() {
     // Add SVG sources to the icon system.
     icon_system.add_svg(
         IconSourceID(0),
-        SvgSource::Data(LION_SVG).load(&Default::default()).unwrap(),
+        resvg::usvg::Tree::from_data(LION_SVG, &Default::default()).unwrap(),
         true,
     );
     icon_system.add_svg(
         IconSourceID(1),
-        SvgSource::Data(EAGLE_SVG)
-            .load(&Default::default())
-            .unwrap(),
+        resvg::usvg::Tree::from_data(EAGLE_SVG, &Default::default()).unwrap(),
         false,
     );
 

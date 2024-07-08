@@ -1,7 +1,8 @@
 use crate::{
     ColorMode, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, PrepareError, RenderError,
-    SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
+    SwashCache, SwashContent, TextArea, TextAtlas, TextBounds, Viewport,
 };
+use cosmic_text::Color;
 use std::{slice, sync::Arc};
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
@@ -54,10 +55,102 @@ impl TextRenderer {
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
+        #[cfg(feature = "custom-glyphs")] mut render_custom_glyph: impl FnMut(
+            CustomGlyphInput,
+        ) -> Option<
+            CustomGlyphOutput,
+        >,
     ) -> Result<(), PrepareError> {
         self.glyph_vertices.clear();
 
         let resolution = viewport.resolution();
+
+        #[cfg(feature = "custom-glyphs")]
+        let custom_glyph_font_id = cosmic_text::fontdb::ID::dummy();
+        #[cfg(feature = "custom-glyphs")]
+        // This is a bit of a hacky way to reserve a slot for icons in the text
+        // atlas, but this is a simple way to ensure that there will be no
+        // conflicts in the atlas without the need to create our own custom
+        // `CacheKey` struct with extra bytes.
+        let custom_glyph_flags = cosmic_text::CacheKeyFlags::from_bits_retain(u32::MAX);
+
+        let mut clip_and_add_glyph = |details: &GlyphDetails,
+                                      mut x: i32,
+                                      mut y: i32,
+                                      bounds: TextBounds,
+                                      color: Color,
+                                      metadata: usize,
+                                      color_mode: ColorMode| {
+            let (mut atlas_x, mut atlas_y, content_type) = match details.gpu_cache {
+                GpuCacheStatus::InAtlas { x, y, content_type } => (x, y, content_type),
+                GpuCacheStatus::SkipRasterization => return,
+            };
+
+            let mut width = details.width as i32;
+            let mut height = details.height as i32;
+
+            let bounds_min_x = bounds.left.max(0);
+            let bounds_min_y = bounds.top.max(0);
+            let bounds_max_x = bounds.right.min(resolution.width as i32);
+            let bounds_max_y = bounds.bottom.min(resolution.height as i32);
+
+            // Starts beyond right edge or ends beyond left edge
+            let max_x = x + width;
+            if x > bounds_max_x || max_x < bounds_min_x {
+                return;
+            }
+
+            // Starts beyond bottom edge or ends beyond top edge
+            let max_y = y + height;
+            if y > bounds_max_y || max_y < bounds_min_y {
+                return;
+            }
+
+            // Clip left ege
+            if x < bounds_min_x {
+                let right_shift = bounds_min_x - x;
+
+                x = bounds_min_x;
+                width = max_x - bounds_min_x;
+                atlas_x += right_shift as u16;
+            }
+
+            // Clip right edge
+            if x + width > bounds_max_x {
+                width = bounds_max_x - x;
+            }
+
+            // Clip top edge
+            if y < bounds_min_y {
+                let bottom_shift = bounds_min_y - y;
+
+                y = bounds_min_y;
+                height = max_y - bounds_min_y;
+                atlas_y += bottom_shift as u16;
+            }
+
+            // Clip bottom edge
+            if y + height > bounds_max_y {
+                height = bounds_max_y - y;
+            }
+
+            let depth = metadata_to_depth(metadata);
+
+            self.glyph_vertices.push(GlyphToRender {
+                pos: [x, y],
+                dim: [width as u16, height as u16],
+                uv: [atlas_x, atlas_y],
+                color: color.0,
+                content_type_with_srgb: [
+                    content_type as u16,
+                    match color_mode {
+                        ColorMode::Accurate => TextColorConversion::ConvertToLinear,
+                        ColorMode::Web => TextColorConversion::None,
+                    } as u16,
+                ],
+                depth,
+            });
+        };
 
         for text_area in text_areas {
             let bounds_min_x = text_area.bounds.left.max(0);
@@ -193,8 +286,8 @@ impl TextRenderer {
 
                     let details = atlas.glyph(&physical_glyph.cache_key).unwrap();
 
-                    let mut x = physical_glyph.x + details.left as i32;
-                    let mut y = (run.line_y * text_area.scale).round() as i32 + physical_glyph.y
+                    let x = physical_glyph.x + details.left as i32;
+                    let y = (run.line_y * text_area.scale).round() as i32 + physical_glyph.y
                         - details.top as i32;
 
                     let (mut atlas_x, mut atlas_y, content_type) = match details.gpu_cache {
@@ -250,22 +343,15 @@ impl TextRenderer {
                         None => text_area.default_color,
                     };
 
-                    let depth = metadata_to_depth(glyph.metadata);
-
-                    self.glyph_vertices.push(GlyphToRender {
-                        pos: [x, y],
-                        dim: [width as u16, height as u16],
-                        uv: [atlas_x, atlas_y],
-                        color: color.0,
-                        content_type_with_srgb: [
-                            content_type as u16,
-                            match atlas.color_mode {
-                                ColorMode::Accurate => TextColorConversion::ConvertToLinear,
-                                ColorMode::Web => TextColorConversion::None,
-                            } as u16,
-                        ],
-                        depth,
-                    });
+                    clip_and_add_glyph(
+                        atlas.glyph(&physical_glyph.cache_key).unwrap(),
+                        x,
+                        y,
+                        text_area.bounds,
+                        color,
+                        glyph.metadata,
+                        atlas.color_mode,
+                    );
                 }
             }
         }
@@ -312,6 +398,10 @@ impl TextRenderer {
         viewport: &Viewport,
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
+        #[cfg(feature = "custom-glyphs")] render_custom_glyph: impl FnMut(
+            CustomGlyphInput,
+        )
+            -> Option<CustomGlyphOutput>,
     ) -> Result<(), PrepareError> {
         self.prepare_with_depth(
             device,
@@ -322,6 +412,8 @@ impl TextRenderer {
             text_areas,
             cache,
             zero_depth,
+            #[cfg(feature = "custom-glyphs")]
+            render_custom_glyph,
         )
     }
 
@@ -385,4 +477,28 @@ pub(crate) fn create_oversized_buffer(
 
 fn zero_depth(_: usize) -> f32 {
     0f32
+}
+
+#[cfg(feature = "custom-glyphs")]
+#[derive(Debug, Clone, Copy, PartialEq)]
+/// The input data to render a custom glyph
+pub struct CustomGlyphInput {
+    /// The unique identifier of the glyph.
+    pub id: crate::CustomGlyphID,
+    /// The size of the glyph.
+    pub size: f32,
+    /// Binning of fractional X offset
+    pub x_bin: cosmic_text::SubpixelBin,
+    /// Binning of fractional Y offset
+    pub y_bin: cosmic_text::SubpixelBin,
+}
+
+#[cfg(feature = "custom-glyphs")]
+#[derive(Debug, Clone)]
+/// The output of a rendered custom glyph
+pub struct CustomGlyphOutput {
+    pub data: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+    pub content_type: ContentType,
 }

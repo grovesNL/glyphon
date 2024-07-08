@@ -1,7 +1,8 @@
 use glyphon::{
-    icon::{IconDesc, IconRenderer, IconSourceID, IconSystem},
-    Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,
-    TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
+    svg::{usvg, SvgGlyphSystem},
+    Attrs, Buffer, Cache, Color, ContentType, Family, FontSystem, InlineBox, InlineBoxContent,
+    Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer,
+    Viewport,
 };
 use std::sync::Arc;
 use wgpu::{
@@ -74,35 +75,37 @@ async fn run() {
     let mut atlas = TextAtlas::new(&device, &queue, &cache, swapchain_format);
     let mut text_renderer =
         TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
-    let mut buffer = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
+    let mut text_buffer = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
 
     let physical_width = (width as f64 * scale_factor) as f32;
     let physical_height = (height as f64 * scale_factor) as f32;
 
-    buffer.set_size(&mut font_system, physical_width, physical_height);
-    buffer.set_text(
+    text_buffer.set_size(
+        &mut font_system,
+        Some(physical_width),
+        Some(physical_height),
+    );
+    text_buffer.set_text(
         &mut font_system,
         "SVG icons!     --->\n\nThe icons below should be partially clipped.",
         Attrs::new().family(Family::SansSerif),
         Shaping::Advanced,
     );
-    buffer.shape_until_scroll(&mut font_system, false);
+    text_buffer.shape_until_scroll(&mut font_system, false);
 
-    // Set up icon renderer
-    let mut icon_system = IconSystem::new();
-    let mut icon_renderer =
-        IconRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
+    // Set up svg system
+    let mut svg_system = SvgGlyphSystem::default();
 
-    // Add SVG sources to the icon system.
-    icon_system.add_svg(
-        IconSourceID(0),
-        resvg::usvg::Tree::from_data(LION_SVG, &Default::default()).unwrap(),
-        true,
+    // Add SVG sources
+    svg_system.add_svg(
+        0,
+        usvg::Tree::from_data(LION_SVG, &Default::default()).unwrap(),
+        ContentType::Mask,
     );
-    icon_system.add_svg(
-        IconSourceID(1),
-        resvg::usvg::Tree::from_data(EAGLE_SVG, &Default::default()).unwrap(),
-        false,
+    svg_system.add_svg(
+        1,
+        usvg::Tree::from_data(EAGLE_SVG, &Default::default()).unwrap(),
+        ContentType::Color,
     );
 
     event_loop
@@ -128,13 +131,6 @@ async fn run() {
                             },
                         );
 
-                        let bounds = TextBounds {
-                            left: 0,
-                            top: 0,
-                            right: 650,
-                            bottom: 180,
-                        };
-
                         text_renderer
                             .prepare(
                                 &device,
@@ -143,64 +139,78 @@ async fn run() {
                                 &mut atlas,
                                 &viewport,
                                 [TextArea {
-                                    buffer: &buffer,
+                                    buffer: &text_buffer,
                                     left: 10.0,
                                     top: 10.0,
                                     scale: 1.0,
-                                    bounds,
+                                    bounds: TextBounds {
+                                        left: 0,
+                                        top: 0,
+                                        right: 650,
+                                        bottom: 180,
+                                    },
                                     default_color: Color::rgb(255, 255, 255),
+                                    inline_boxes: vec![
+                                        InlineBox {
+                                            left: 300.0,
+                                            top: 15.0,
+                                            width: 64.0,
+                                            height: 64.0,
+                                            content: InlineBoxContent::CustomGlyph {
+                                                id: 0,
+                                                size: 64.0,
+                                                left: 0.0,
+                                                top: 0.0,
+                                                color: Some(Color::rgb(200, 200, 255)),
+                                                metadata: 0,
+                                            },
+                                        },
+                                        InlineBox {
+                                            left: 400.0,
+                                            top: 15.0,
+                                            width: 64.0,
+                                            height: 64.0,
+                                            content: InlineBoxContent::CustomGlyph {
+                                                id: 1,
+                                                size: 64.0,
+                                                left: 0.0,
+                                                top: 0.0,
+                                                color: None,
+                                                metadata: 0,
+                                            },
+                                        },
+                                        InlineBox {
+                                            left: 300.0,
+                                            top: 140.0,
+                                            width: 64.0,
+                                            height: 64.0,
+                                            content: InlineBoxContent::CustomGlyph {
+                                                id: 0,
+                                                size: 64.0,
+                                                left: 0.0,
+                                                top: 0.0,
+                                                color: Some(Color::rgb(200, 255, 200)),
+                                                metadata: 0,
+                                            },
+                                        },
+                                        InlineBox {
+                                            left: 400.0,
+                                            top: 140.0,
+                                            width: 64.0,
+                                            height: 64.0,
+                                            content: InlineBoxContent::CustomGlyph {
+                                                id: 1,
+                                                size: 64.0,
+                                                left: 0.0,
+                                                top: 0.0,
+                                                color: None,
+                                                metadata: 0,
+                                            },
+                                        },
+                                    ],
                                 }],
                                 &mut swash_cache,
-                            )
-                            .unwrap();
-
-                        icon_renderer
-                            .prepare(
-                                &device,
-                                &queue,
-                                &mut icon_system,
-                                &mut font_system,
-                                &mut atlas,
-                                &viewport,
-                                [
-                                    IconDesc {
-                                        id: IconSourceID(0),
-                                        size: 64.0,
-                                        left: 300,
-                                        top: 15,
-                                        color: Color::rgb(200, 200, 255),
-                                        bounds,
-                                        metadata: 0,
-                                    },
-                                    IconDesc {
-                                        id: IconSourceID(1),
-                                        size: 64.0,
-                                        left: 400,
-                                        top: 15,
-                                        color: Color::rgb(255, 255, 255),
-                                        bounds,
-                                        metadata: 0,
-                                    },
-                                    IconDesc {
-                                        id: IconSourceID(0),
-                                        size: 64.0,
-                                        left: 300,
-                                        top: 140,
-                                        color: Color::rgb(200, 255, 200),
-                                        bounds,
-                                        metadata: 0,
-                                    },
-                                    IconDesc {
-                                        id: IconSourceID(1),
-                                        size: 64.0,
-                                        left: 400,
-                                        top: 140,
-                                        color: Color::rgb(255, 255, 255),
-                                        bounds,
-                                        metadata: 0,
-                                    },
-                                ],
-                                &mut swash_cache,
+                                |input| svg_system.render_custom_glyph(input),
                             )
                             .unwrap();
 
@@ -230,7 +240,6 @@ async fn run() {
                             });
 
                             text_renderer.render(&atlas, &viewport, &mut pass).unwrap();
-                            icon_renderer.render(&atlas, &viewport, &mut pass).unwrap();
                         }
 
                         queue.submit(Some(encoder.finish()));

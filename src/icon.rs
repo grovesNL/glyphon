@@ -68,10 +68,7 @@ impl IconRenderer {
         let resolution = viewport.resolution();
 
         let font_id = cosmic_text::fontdb::ID::dummy();
-        // This is a bit of a hacky way to reserve a slot for icons in the text
-        // atlas, but this is a simple way to ensure that there will be no
-        // conflicts in the atlas without the need to create our own custom
-        // `CacheKey` struct with extra bytes.
+        
         let flags = CacheKeyFlags::from_bits_retain(u32::MAX);
 
         for icon in icons {

@@ -8,7 +8,9 @@ repository = "https://github.com/grovesNL/glyphon"
 license = "MIT OR Apache-2.0 OR Zlib"
 
 [features]
-svg-icons = ["dep:resvg"]
+custom-glyphs = []
+svg = ["dep:resvg", "custom-glyphs"]
+svg-raster-images = ["resvg?/raster-images"]
 
 [dependencies]
 wgpu = { version = "22", default-features = false, features = ["wgsl"] }
@@ -21,9 +23,10 @@ resvg = { version = "0.42", default-features = false, optional = true }
 [dev-dependencies]
 winit = "0.30.3"
 wgpu = "22"
+resvg = { version = "0.42", default-features = false }
 pollster = "0.3.0"
 
 [[example]]
 name = "svg-icons"
 path = "examples/svg-icons.rs"
-required-features = ["svg-icons"]
+required-features = ["svg"]

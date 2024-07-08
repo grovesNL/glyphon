@@ -122,64 +122,30 @@ pub struct TextArea<'a> {
     // The default color of the text area.
     pub default_color: Color,
 
-    // Since this has no effect on text layout yet, only expose this if
-    // the custom glyph feature is enabled.
     #[cfg(feature = "custom-glyphs")]
-    /// Any additional boxes of non-textual content that is inline with text.
-    ///
-    /// Note, this currently does not affect layout of text.
-    /// (see: https://github.com/pop-os/cosmic-text/issues/80)
-    pub inline_boxes: Vec<InlineBox>,
+    /// Additional custom glyphs to render
+    pub custom_glyphs: Vec<CustomGlyphDesc>,
 }
 
-// Since this has no effect on text layout yet, only expose this if
-// the custom glyph feature is enabled.
 #[cfg(feature = "custom-glyphs")]
-/// An arbitrary box of non-textual content that is inline with text.
-///
-/// Note, this currently does not affect layout of text
-/// (see: https://github.com/pop-os/cosmic-text/issues/80)
+/// A custom glyph to render
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct InlineBox {
-    /// The position of the left edge of the rectangular area.
+pub struct CustomGlyphDesc {
+    /// The unique identifier for this glyph
+    pub id: CustomGlyphID,
+    /// The position of the left edge of the glyph
     pub left: f32,
-    /// The position of the top edge of the rectangular area.
+    /// The position of the top edge of the glyph
     pub top: f32,
-    /// The width of the rectangular area.
-    pub width: f32,
-    /// The height of the rectangular area.
-    pub height: f32,
-
-    /// The content of the box.
-    pub content: InlineBoxContent,
-}
-
-// Since this has no effect on text layout yet, only expose this if
-// the custom glyph feature is enabled.
-#[cfg(feature = "custom-glyphs")]
-/// The contents of an [`InlineBox`]
-#[non_exhaustive]
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub enum InlineBoxContent {
-    #[default]
-    None,
-    CustomGlyph {
-        /// The unique identifier for this glyph
-        id: CustomGlyphID,
-        /// The size of the glyph
-        size: f32,
-        /// The x offset of the glyph relative to the box
-        left: f32,
-        /// The y offset of the glyph relative to the box
-        top: f32,
-        /// The color of this glyph (only relevant if the glyph is rendered with the
-        /// type [`ContentType::Mask`])
-        ///
-        /// Set to `None` to use [`TextArea::default_color`].
-        color: Option<Color>,
-        /// Additional metadata about the glyph
-        metadata: usize,
-    },
+    /// The size of the glyph
+    pub size: f32,
+    /// The color of this glyph (only relevant if the glyph is rendered with the
+    /// type [`ContentType::Mask`])
+    ///
+    /// Set to `None` to use [`TextArea::default_color`].
+    pub color: Option<Color>,
+    /// Additional metadata about the glyph
+    pub metadata: usize,
 }
 
 #[cfg(feature = "custom-glyphs")]

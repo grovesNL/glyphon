@@ -1,8 +1,7 @@
 use glyphon::{
     svg::{usvg, SvgGlyphSystem},
-    Attrs, Buffer, Cache, Color, ContentType, Family, FontSystem, InlineBox, InlineBoxContent,
-    Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer,
-    Viewport,
+    Attrs, Buffer, Cache, Color, ContentType, CustomGlyphDesc, Family, FontSystem, Metrics,
+    Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
 use std::sync::Arc;
 use wgpu::{
@@ -150,62 +149,38 @@ async fn run() {
                                         bottom: 180,
                                     },
                                     default_color: Color::rgb(255, 255, 255),
-                                    inline_boxes: vec![
-                                        InlineBox {
+                                    custom_glyphs: vec![
+                                        CustomGlyphDesc {
+                                            id: 0,
                                             left: 300.0,
                                             top: 15.0,
-                                            width: 64.0,
-                                            height: 64.0,
-                                            content: InlineBoxContent::CustomGlyph {
-                                                id: 0,
-                                                size: 64.0,
-                                                left: 0.0,
-                                                top: 0.0,
-                                                color: Some(Color::rgb(200, 200, 255)),
-                                                metadata: 0,
-                                            },
+                                            size: 64.0,
+                                            color: Some(Color::rgb(200, 200, 255)),
+                                            metadata: 0,
                                         },
-                                        InlineBox {
+                                        CustomGlyphDesc {
+                                            id: 1,
                                             left: 400.0,
                                             top: 15.0,
-                                            width: 64.0,
-                                            height: 64.0,
-                                            content: InlineBoxContent::CustomGlyph {
-                                                id: 1,
-                                                size: 64.0,
-                                                left: 0.0,
-                                                top: 0.0,
-                                                color: None,
-                                                metadata: 0,
-                                            },
+                                            size: 64.0,
+                                            color: None,
+                                            metadata: 0,
                                         },
-                                        InlineBox {
+                                        CustomGlyphDesc {
+                                            id: 0,
                                             left: 300.0,
                                             top: 140.0,
-                                            width: 64.0,
-                                            height: 64.0,
-                                            content: InlineBoxContent::CustomGlyph {
-                                                id: 0,
-                                                size: 64.0,
-                                                left: 0.0,
-                                                top: 0.0,
-                                                color: Some(Color::rgb(200, 255, 200)),
-                                                metadata: 0,
-                                            },
+                                            size: 64.0,
+                                            color: Some(Color::rgb(200, 255, 200)),
+                                            metadata: 0,
                                         },
-                                        InlineBox {
+                                        CustomGlyphDesc {
+                                            id: 1,
                                             left: 400.0,
                                             top: 140.0,
-                                            width: 64.0,
-                                            height: 64.0,
-                                            content: InlineBoxContent::CustomGlyph {
-                                                id: 1,
-                                                size: 64.0,
-                                                left: 0.0,
-                                                top: 0.0,
-                                                color: None,
-                                                metadata: 0,
-                                            },
+                                            size: 64.0,
+                                            color: None,
+                                            metadata: 0,
                                         },
                                     ],
                                 }],

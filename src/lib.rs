@@ -19,6 +19,9 @@ pub use text_atlas::{ColorMode, TextAtlas};
 pub use text_render::{ContentType, TextRenderer};
 pub use viewport::Viewport;
 
+#[cfg(feature = "custom-glyphs")]
+pub use text_render::{CustomGlyphInput, CustomGlyphOutput};
+
 // Re-export all top-level types from `cosmic-text` for convenience.
 #[doc(no_inline)]
 pub use cosmic_text::{

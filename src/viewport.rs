@@ -1,9 +1,6 @@
-use crate::{Cache, Params, Resolution};
-
+use crate::{Cache, Params, Resolution, PARAMS_LEN, PARAMS_LEN_NONZERO};
+use std::{mem, slice};
 use wgpu::{BindGroup, Buffer, BufferDescriptor, BufferUsages, Device, Queue};
-
-use std::mem;
-use std::slice;
 
 #[derive(Debug)]
 pub struct Viewport {
@@ -39,15 +36,19 @@ impl Viewport {
     }
 
     pub fn update(&mut self, queue: &Queue, resolution: Resolution) {
-        if self.params.screen_resolution != resolution {
-            self.params.screen_resolution = resolution;
+        if self.params.screen_resolution == resolution {
+            return;
+        }
 
-            queue.write_buffer(&self.params_buffer, 0, unsafe {
-                slice::from_raw_parts(
-                    &self.params as *const Params as *const u8,
-                    mem::size_of::<Params>(),
-                )
-            });
+        self.params.screen_resolution = resolution;
+
+        if let Some(mut view) = queue.write_buffer_with(&self.params_buffer, 0, PARAMS_LEN_NONZERO)
+        {
+            let params_raw = unsafe {
+                slice::from_raw_parts(&self.params as *const Params as *const u8, PARAMS_LEN)
+            };
+
+            view.copy_from_slice(params_raw);
         }
     }
 

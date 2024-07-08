@@ -10,6 +10,8 @@ mod text_atlas;
 mod text_render;
 mod viewport;
 
+use std::{mem, num::NonZeroU64};
+
 pub use cache::Cache;
 pub use error::{PrepareError, RenderError};
 pub use text_atlas::{ColorMode, TextAtlas};
@@ -75,6 +77,10 @@ pub(crate) struct Params {
     screen_resolution: Resolution,
     _pad: [u32; 2],
 }
+
+pub(crate) const PARAMS_LEN: usize = mem::size_of::<Params>();
+pub(crate) const PARAMS_LEN_NONZERO: NonZeroU64 =
+    unsafe { NonZeroU64::new_unchecked(PARAMS_LEN as u64) };
 
 /// Controls the visible area of the text. Any text outside of the visible area will be clipped.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

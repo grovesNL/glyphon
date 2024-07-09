@@ -124,7 +124,7 @@ pub struct TextArea<'a> {
 
     #[cfg(feature = "custom-glyphs")]
     /// Additional custom glyphs to render
-    pub custom_glyphs: Vec<CustomGlyphDesc>,
+    pub custom_glyphs: &'a [CustomGlyphDesc],
 }
 
 #[cfg(feature = "custom-glyphs")]

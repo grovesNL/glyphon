@@ -149,7 +149,7 @@ async fn run() {
                                         bottom: 180,
                                     },
                                     default_color: Color::rgb(255, 255, 255),
-                                    custom_glyphs: vec![
+                                    custom_glyphs: &[
                                         CustomGlyphDesc {
                                             id: 0,
                                             left: 300.0,

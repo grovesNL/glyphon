@@ -153,7 +153,7 @@ async fn run() {
                                         CustomGlyphDesc {
                                             id: 0,
                                             left: 300.0,
-                                            top: 15.0,
+                                            top: 5.0,
                                             size: 64.0,
                                             color: Some(Color::rgb(200, 200, 255)),
                                             metadata: 0,
@@ -161,7 +161,7 @@ async fn run() {
                                         CustomGlyphDesc {
                                             id: 1,
                                             left: 400.0,
-                                            top: 15.0,
+                                            top: 5.0,
                                             size: 64.0,
                                             color: None,
                                             metadata: 0,
@@ -169,7 +169,7 @@ async fn run() {
                                         CustomGlyphDesc {
                                             id: 0,
                                             left: 300.0,
-                                            top: 140.0,
+                                            top: 130.0,
                                             size: 64.0,
                                             color: Some(Color::rgb(200, 255, 200)),
                                             metadata: 0,
@@ -177,7 +177,7 @@ async fn run() {
                                         CustomGlyphDesc {
                                             id: 1,
                                             left: 400.0,
-                                            top: 140.0,
+                                            top: 130.0,
                                             size: 64.0,
                                             color: None,
                                             metadata: 0,

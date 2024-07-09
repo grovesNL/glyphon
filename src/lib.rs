@@ -129,7 +129,7 @@ pub struct TextArea<'a> {
 
 #[cfg(feature = "custom-glyphs")]
 /// A custom glyph to render
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct CustomGlyphDesc {
     /// The unique identifier for this glyph
     pub id: CustomGlyphID,

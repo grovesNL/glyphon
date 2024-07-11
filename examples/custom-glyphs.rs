@@ -1,7 +1,7 @@
 use glyphon::{
-    svg::{usvg, SvgGlyphSystem},
-    Attrs, Buffer, Cache, Color, ContentType, CustomGlyphDesc, Family, FontSystem, Metrics,
-    Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
+    Attrs, Buffer, Cache, Color, ContentType, CustomGlyphDesc, CustomGlyphInput, CustomGlyphOutput,
+    Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds,
+    TextRenderer, Viewport,
 };
 use std::sync::Arc;
 use wgpu::{
@@ -32,7 +32,7 @@ async fn run() {
     let window = Arc::new(
         WindowBuilder::new()
             .with_inner_size(LogicalSize::new(width as f64, height as f64))
-            .with_title("glyphon svg icons")
+            .with_title("glyphon custom glyphs")
             .build(&event_loop)
             .unwrap(),
     );
@@ -92,20 +92,56 @@ async fn run() {
     );
     text_buffer.shape_until_scroll(&mut font_system, false);
 
-    // Set up svg system
-    let mut svg_system = SvgGlyphSystem::default();
+    // Set up custom svg renderer
 
-    // Add SVG sources
-    svg_system.add_svg(
-        0,
-        usvg::Tree::from_data(LION_SVG, &Default::default()).unwrap(),
-        ContentType::Mask,
-    );
-    svg_system.add_svg(
-        1,
-        usvg::Tree::from_data(EAGLE_SVG, &Default::default()).unwrap(),
-        ContentType::Color,
-    );
+    let svg_0 = resvg::usvg::Tree::from_data(LION_SVG, &Default::default()).unwrap();
+    let svg_1 = resvg::usvg::Tree::from_data(EAGLE_SVG, &Default::default()).unwrap();
+
+    let rasterize_svg = move |input: CustomGlyphInput| -> Option<CustomGlyphOutput> {
+        // Select the svg data based on the custom glyph ID.
+        let (svg, content_type) = match input.id {
+            0 => (&svg_0, ContentType::Mask),
+            1 => (&svg_1, ContentType::Color),
+            _ => return None,
+        };
+
+        // Calculate the scale based on the "font size".
+        let svg_size = svg.size();
+        let max_side_len = svg_size.width().max(svg_size.height());
+        let scale = input.size / max_side_len;
+
+        // Create a buffer to write pixels to.
+        let width = (svg_size.width() * scale).ceil() as u32;
+        let height = (svg_size.height() * scale).ceil() as u32;
+        let Some(mut pixmap) = resvg::tiny_skia::Pixmap::new(width, height) else {
+            return None;
+        };
+
+        let mut transform = resvg::usvg::Transform::from_scale(scale, scale);
+
+        // Offset the glyph by the subpixel amount.
+        let offset_x = input.x_bin.as_float();
+        let offset_y = input.y_bin.as_float();
+        if offset_x != 0.0 || offset_y != 0.0 {
+            transform = transform.post_translate(offset_x, offset_y);
+        }
+
+        resvg::render(svg, transform, &mut pixmap.as_mut());
+
+        let data: Vec<u8> = if let ContentType::Mask = content_type {
+            // Only use the alpha channel for symbolic icons.
+            pixmap.data().iter().skip(3).step_by(4).copied().collect()
+        } else {
+            pixmap.data().to_vec()
+        };
+
+        Some(CustomGlyphOutput {
+            data,
+            width,
+            height,
+            content_type,
+        })
+    };
 
     event_loop
         .run(move |event, target| {
@@ -185,7 +221,7 @@ async fn run() {
                                     ],
                                 }],
                                 &mut swash_cache,
-                                |input| svg_system.render_custom_glyph(input),
+                                |input| rasterize_svg(input),
                             )
                             .unwrap();
 

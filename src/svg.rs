@@ -38,7 +38,7 @@ impl SvgGlyphSystem {
         self.svgs.remove(&id).is_some()
     }
 
-    pub fn render_custom_glyph(&mut self, input: CustomGlyphInput) -> Option<CustomGlyphOutput> {
+    pub fn rasterize_custom_glyph(&mut self, input: CustomGlyphInput) -> Option<CustomGlyphOutput> {
         let Some(svg_data) = self.svgs.get(&input.id) else {
             return None;
         };

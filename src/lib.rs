@@ -10,9 +10,6 @@ mod text_atlas;
 mod text_render;
 mod viewport;
 
-#[cfg(feature = "svg")]
-pub mod svg;
-
 pub use cache::Cache;
 pub use error::{PrepareError, RenderError};
 pub use text_atlas::{ColorMode, TextAtlas};

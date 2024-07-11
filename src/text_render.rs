@@ -55,7 +55,7 @@ impl TextRenderer {
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
-        #[cfg(feature = "custom-glyphs")] mut render_custom_glyph: impl FnMut(
+        #[cfg(feature = "custom-glyphs")] mut rasterize_custom_glyph: impl FnMut(
             CustomGlyphInput,
         ) -> Option<
             CustomGlyphOutput,
@@ -398,10 +398,11 @@ impl TextRenderer {
         viewport: &Viewport,
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
-        #[cfg(feature = "custom-glyphs")] render_custom_glyph: impl FnMut(
+        #[cfg(feature = "custom-glyphs")] rasterize_custom_glyph: impl FnMut(
             CustomGlyphInput,
-        )
-            -> Option<CustomGlyphOutput>,
+        ) -> Option<
+            CustomGlyphOutput,
+        >,
     ) -> Result<(), PrepareError> {
         self.prepare_with_depth(
             device,
@@ -413,7 +414,7 @@ impl TextRenderer {
             cache,
             zero_depth,
             #[cfg(feature = "custom-glyphs")]
-            render_custom_glyph,
+            rasterize_custom_glyph,
         )
     }
 

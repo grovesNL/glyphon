@@ -239,6 +239,7 @@ impl Cache {
                     depth_stencil: depth_stencil.clone(),
                     multisample,
                     multiview: None,
+                    cache: None,
                 }));
 
                 cache.push((format, multisample, depth_stencil, pipeline.clone()));

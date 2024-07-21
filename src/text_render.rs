@@ -486,8 +486,10 @@ fn zero_depth(_: usize) -> f32 {
 pub struct CustomGlyphInput {
     /// The unique identifier of the glyph.
     pub id: crate::CustomGlyphID,
-    /// The size of the glyph.
+    /// The size of the glyph in points (not scaled by the text area's scaling factor)
     pub size: f32,
+    /// The scaling factor applied to the text area.
+    pub scale: f32,
     /// Binning of fractional X offset
     pub x_bin: cosmic_text::SubpixelBin,
     /// Binning of fractional Y offset

@@ -105,10 +105,11 @@ async fn run() {
             _ => return None,
         };
 
-        // Calculate the scale based on the "font size".
+        // Calculate the scale based on the "glyph size".
+        let glyph_size = input.size * input.scale;
         let svg_size = svg.size();
         let max_side_len = svg_size.width().max(svg_size.height());
-        let scale = input.size / max_side_len;
+        let scale = glyph_size / max_side_len;
 
         // Create a buffer to write pixels to.
         let width = (svg_size.width() * scale).ceil() as u32;

@@ -26,7 +26,6 @@ struct WindowState {
 
     font_system: FontSystem,
     swash_cache: SwashCache,
-    _cache: glyphon::Cache,
     viewport: glyphon::Viewport,
     atlas: glyphon::TextAtlas,
     text_renderer: glyphon::TextRenderer,
@@ -98,7 +97,6 @@ impl WindowState {
             surface_config,
             font_system,
             swash_cache,
-            _cache: cache,
             viewport,
             atlas,
             text_renderer,

@@ -60,7 +60,18 @@ impl TextRenderer {
         let resolution = viewport.resolution();
 
         for text_area in text_areas {
-            for run in text_area.buffer.layout_runs() {
+            let is_run_visible = |run: &cosmic_text::LayoutRun| {
+                let start_y = (text_area.top + run.line_top) as i32;
+                let end_y = (text_area.top + run.line_top + run.line_height) as i32;
+
+                start_y <= text_area.bounds.bottom && text_area.bounds.top <= end_y
+            };
+
+            let layout_runs = text_area.buffer.layout_runs()
+                .skip_while(|run| !is_run_visible(run))
+                .take_while(is_run_visible);
+
+            for run in layout_runs {
                 for glyph in run.glyphs.iter() {
                     let physical_glyph =
                         glyph.physical((text_area.left, text_area.top), text_area.scale);

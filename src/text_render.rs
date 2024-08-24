@@ -546,7 +546,7 @@ fn zero_depth(_: usize) -> f32 {
 /// The input data to render a custom glyph
 pub struct CustomGlyphInput {
     /// The unique identifier of the glyph.
-    pub id: crate::CustomGlyphID,
+    pub id: crate::CustomGlyphId,
     /// The size of the glyph in points (not scaled by the text area's scaling factor)
     pub size: f32,
     /// The scaling factor applied to the text area.

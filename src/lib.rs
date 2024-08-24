@@ -125,7 +125,7 @@ pub struct TextArea<'a> {
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct CustomGlyph {
     /// The unique identifier for this glyph
-    pub id: CustomGlyphID,
+    pub id: CustomGlyphId,
     /// The position of the left edge of the glyph
     pub left: f32,
     /// The position of the top edge of the glyph
@@ -141,4 +141,4 @@ pub struct CustomGlyph {
     pub metadata: usize,
 }
 
-pub type CustomGlyphID = u16;
+pub type CustomGlyphId = u16;

@@ -1,5 +1,5 @@
 use crate::{
-    text_render::GlyphonCacheKey, Cache, ContentType, CustomGlyphInput, CustomGlyphOutput,
+    text_render::GlyphonCacheKey, Cache, ContentType, RasterizationRequest, RasterizedCustomGlyph,
     FontSystem, GlyphDetails, GpuCacheStatus, SwashCache,
 };
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
@@ -124,7 +124,7 @@ impl InnerAtlas {
         font_system: &mut FontSystem,
         cache: &mut SwashCache,
         scale_factor: f32,
-        mut rasterize_custom_glyph: impl FnMut(CustomGlyphInput) -> Option<CustomGlyphOutput>,
+        mut rasterize_custom_glyph: impl FnMut(RasterizationRequest) -> Option<RasterizedCustomGlyph>,
     ) -> bool {
         if self.size >= self.max_texture_dimension_2d {
             return false;
@@ -169,7 +169,7 @@ impl InnerAtlas {
                     (image.data, width, height)
                 }
                 GlyphonCacheKey::Custom(cache_key) => {
-                    let input = CustomGlyphInput {
+                    let input = RasterizationRequest {
                         id: cache_key.glyph_id,
                         width: cache_key.width,
                         height: cache_key.height,
@@ -352,7 +352,7 @@ impl TextAtlas {
         cache: &mut SwashCache,
         content_type: ContentType,
         scale_factor: f32,
-        rasterize_custom_glyph: impl FnMut(CustomGlyphInput) -> Option<CustomGlyphOutput>,
+        rasterize_custom_glyph: impl FnMut(RasterizationRequest) -> Option<RasterizedCustomGlyph>,
     ) -> bool {
         let did_grow = match content_type {
             ContentType::Mask => self.mask_atlas.grow(

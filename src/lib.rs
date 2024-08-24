@@ -13,7 +13,7 @@ mod viewport;
 
 pub use cache::Cache;
 pub use custom_glyph::{
-    ContentType, CustomGlyph, CustomGlyphId, CustomGlyphInput, CustomGlyphOutput,
+    ContentType, CustomGlyph, CustomGlyphId, RasterizationRequest, RasterizedCustomGlyph,
 };
 pub use error::{PrepareError, RenderError};
 pub use text_atlas::{ColorMode, TextAtlas};

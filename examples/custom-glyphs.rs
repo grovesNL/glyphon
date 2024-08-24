@@ -1,5 +1,5 @@
 use glyphon::{
-    Attrs, Buffer, Cache, Color, ContentType, CustomGlyph, CustomGlyphInput, CustomGlyphOutput,
+    Attrs, Buffer, Cache, Color, ContentType, CustomGlyph, RasterizationRequest, RasterizedCustomGlyph,
     Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds,
     TextRenderer, Viewport,
 };
@@ -36,7 +36,7 @@ struct WindowState {
     text_renderer: glyphon::TextRenderer,
     text_buffer: glyphon::Buffer,
 
-    rasterize_svg: Box<dyn Fn(CustomGlyphInput) -> Option<CustomGlyphOutput>>,
+    rasterize_svg: Box<dyn Fn(RasterizationRequest) -> Option<RasterizedCustomGlyph>>,
 
     // Make sure that the winit window is last in the struct so that
     // it is dropped after the wgpu surface is dropped, otherwise the
@@ -106,7 +106,7 @@ impl WindowState {
         let svg_0 = resvg::usvg::Tree::from_data(LION_SVG, &Default::default()).unwrap();
         let svg_1 = resvg::usvg::Tree::from_data(EAGLE_SVG, &Default::default()).unwrap();
 
-        let rasterize_svg = move |input: CustomGlyphInput| -> Option<CustomGlyphOutput> {
+        let rasterize_svg = move |input: RasterizationRequest| -> Option<RasterizedCustomGlyph> {
             // Select the svg data based on the custom glyph ID.
             let (svg, content_type) = match input.id {
                 0 => (&svg_0, ContentType::Mask),
@@ -143,7 +143,7 @@ impl WindowState {
                 pixmap.data().to_vec()
             };
 
-            Some(CustomGlyphOutput { data, content_type })
+            Some(RasterizedCustomGlyph { data, content_type })
         };
 
         Self {

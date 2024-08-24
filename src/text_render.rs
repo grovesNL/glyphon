@@ -1,5 +1,5 @@
 use crate::{
-    custom_glyph::CustomGlyphCacheKey, ColorMode, ContentType, CustomGlyphInput, CustomGlyphOutput,
+    custom_glyph::CustomGlyphCacheKey, ColorMode, ContentType, RasterizationRequest, RasterizedCustomGlyph,
     FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, PrepareError, RenderError, SwashCache,
     SwashContent, TextArea, TextAtlas, Viewport,
 };
@@ -104,7 +104,7 @@ impl TextRenderer {
         viewport: &Viewport,
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
-        rasterize_custom_glyph: impl FnMut(CustomGlyphInput) -> Option<CustomGlyphOutput>,
+        rasterize_custom_glyph: impl FnMut(RasterizationRequest) -> Option<RasterizedCustomGlyph>,
     ) -> Result<(), PrepareError> {
         self.prepare_with_depth_and_custom(
             device,
@@ -130,7 +130,7 @@ impl TextRenderer {
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
-        mut rasterize_custom_glyph: impl FnMut(CustomGlyphInput) -> Option<CustomGlyphOutput>,
+        mut rasterize_custom_glyph: impl FnMut(RasterizationRequest) -> Option<RasterizedCustomGlyph>,
     ) -> Result<(), PrepareError> {
         self.glyph_vertices.clear();
 
@@ -193,7 +193,7 @@ impl TextRenderer {
                             return None;
                         }
 
-                        let input = CustomGlyphInput {
+                        let input = RasterizationRequest {
                             id: glyph.id,
                             width,
                             height,
@@ -429,7 +429,7 @@ fn prepare_glyph<R>(
     mut rasterize_custom_glyph: R,
 ) -> Result<Option<GlyphToRender>, PrepareError>
 where
-    R: FnMut(CustomGlyphInput) -> Option<CustomGlyphOutput>,
+    R: FnMut(RasterizationRequest) -> Option<RasterizedCustomGlyph>,
 {
     if atlas.mask_atlas.glyph_cache.contains(&cache_key) {
         atlas.mask_atlas.promote(cache_key);

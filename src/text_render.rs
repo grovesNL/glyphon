@@ -1,6 +1,6 @@
 use crate::{
     ColorMode, FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, PrepareError, RenderError,
-    SwashCache, SwashContent, TextArea, TextAtlas, TextBounds, Viewport,
+    SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
 };
 use cosmic_text::Color;
 use std::{slice, sync::Arc};
@@ -55,19 +55,13 @@ impl TextRenderer {
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
-        #[cfg(feature = "custom-glyphs")] mut rasterize_custom_glyph: impl FnMut(
-            CustomGlyphInput,
-        ) -> Option<
-            CustomGlyphOutput,
-        >,
+        mut rasterize_custom_glyph: impl FnMut(CustomGlyphInput) -> Option<CustomGlyphOutput>,
     ) -> Result<(), PrepareError> {
         self.glyph_vertices.clear();
 
         let resolution = viewport.resolution();
 
-        #[cfg(feature = "custom-glyphs")]
         let custom_glyph_font_id = cosmic_text::fontdb::ID::dummy();
-        #[cfg(feature = "custom-glyphs")]
         // This is a bit of a hacky way to reserve a slot for icons in the text
         // atlas, but this is a simple way to ensure that there will be no
         // conflicts in the atlas without the need to create our own custom
@@ -156,7 +150,6 @@ impl TextRenderer {
             let bounds_max_x = text_area.bounds.right.min(resolution.width as i32);
             let bounds_max_y = text_area.bounds.bottom.min(resolution.height as i32);
 
-            #[cfg(feature = "custom-glyphs")]
             for glyph in text_area.custom_glyphs.iter() {
                 let (cache_key, x, y) = cosmic_text::CacheKey::new(
                     custom_glyph_font_id,
@@ -472,11 +465,7 @@ impl TextRenderer {
         viewport: &Viewport,
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
-        #[cfg(feature = "custom-glyphs")] rasterize_custom_glyph: impl FnMut(
-            CustomGlyphInput,
-        ) -> Option<
-            CustomGlyphOutput,
-        >,
+        rasterize_custom_glyph: impl FnMut(CustomGlyphInput) -> Option<CustomGlyphOutput>,
     ) -> Result<(), PrepareError> {
         self.prepare_with_depth(
             device,
@@ -487,7 +476,6 @@ impl TextRenderer {
             text_areas,
             cache,
             zero_depth,
-            #[cfg(feature = "custom-glyphs")]
             rasterize_custom_glyph,
         )
     }
@@ -554,7 +542,6 @@ fn zero_depth(_: usize) -> f32 {
     0f32
 }
 
-#[cfg(feature = "custom-glyphs")]
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// The input data to render a custom glyph
 pub struct CustomGlyphInput {
@@ -570,7 +557,6 @@ pub struct CustomGlyphInput {
     pub y_bin: cosmic_text::SubpixelBin,
 }
 
-#[cfg(feature = "custom-glyphs")]
 #[derive(Debug, Clone)]
 /// The output of a rendered custom glyph
 pub struct CustomGlyphOutput {

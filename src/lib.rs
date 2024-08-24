@@ -14,10 +14,8 @@ pub use cache::Cache;
 pub use error::{PrepareError, RenderError};
 pub use text_atlas::{ColorMode, TextAtlas};
 pub use text_render::{ContentType, TextRenderer};
-pub use viewport::Viewport;
-
-#[cfg(feature = "custom-glyphs")]
 pub use text_render::{CustomGlyphInput, CustomGlyphOutput};
+pub use viewport::Viewport;
 
 // Re-export all top-level types from `cosmic-text` for convenience.
 #[doc(no_inline)]
@@ -119,12 +117,10 @@ pub struct TextArea<'a> {
     // The default color of the text area.
     pub default_color: Color,
 
-    #[cfg(feature = "custom-glyphs")]
     /// Additional custom glyphs to render
     pub custom_glyphs: &'a [CustomGlyphDesc],
 }
 
-#[cfg(feature = "custom-glyphs")]
 /// A custom glyph to render
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct CustomGlyphDesc {
@@ -145,5 +141,4 @@ pub struct CustomGlyphDesc {
     pub metadata: usize,
 }
 
-#[cfg(feature = "custom-glyphs")]
 pub type CustomGlyphID = u16;

@@ -186,8 +186,10 @@ impl winit::application::ApplicationHandler for Application {
                                 bottom: 160,
                             },
                             default_color: Color::rgb(255, 255, 255),
+                            custom_glyphs: &[],
                         }],
                         swash_cache,
+                        |_| None,
                     )
                     .unwrap();
 

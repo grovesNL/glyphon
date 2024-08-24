@@ -1,5 +1,6 @@
 use crate::{
-    text_render::ContentType, Cache, CacheKey, FontSystem, GlyphDetails, GpuCacheStatus, SwashCache,
+    text_render::GlyphonCacheKey, Cache, ContentType, CustomGlyphInput, CustomGlyphOutput,
+    FontSystem, GlyphDetails, GpuCacheStatus, SwashCache,
 };
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
@@ -20,8 +21,8 @@ pub(crate) struct InnerAtlas {
     pub texture_view: TextureView,
     pub packer: BucketedAtlasAllocator,
     pub size: u32,
-    pub glyph_cache: LruCache<CacheKey, GlyphDetails, Hasher>,
-    pub glyphs_in_use: HashSet<CacheKey, Hasher>,
+    pub glyph_cache: LruCache<GlyphonCacheKey, GlyphDetails, Hasher>,
+    pub glyphs_in_use: HashSet<GlyphonCacheKey, Hasher>,
     pub max_texture_dimension_2d: u32,
 }
 
@@ -106,12 +107,12 @@ impl InnerAtlas {
         self.kind.num_channels()
     }
 
-    pub(crate) fn promote(&mut self, glyph: CacheKey) {
+    pub(crate) fn promote(&mut self, glyph: GlyphonCacheKey) {
         self.glyph_cache.promote(&glyph);
         self.glyphs_in_use.insert(glyph);
     }
 
-    pub(crate) fn put(&mut self, glyph: CacheKey, details: GlyphDetails) {
+    pub(crate) fn put(&mut self, glyph: GlyphonCacheKey, details: GlyphDetails) {
         self.glyph_cache.put(glyph, details);
         self.glyphs_in_use.insert(glyph);
     }
@@ -122,6 +123,8 @@ impl InnerAtlas {
         queue: &wgpu::Queue,
         font_system: &mut FontSystem,
         cache: &mut SwashCache,
+        scale_factor: f32,
+        mut rasterize_custom_glyph: impl FnMut(CustomGlyphInput) -> Option<CustomGlyphOutput>,
     ) -> bool {
         if self.size >= self.max_texture_dimension_2d {
             return false;
@@ -157,10 +160,38 @@ impl InnerAtlas {
                 GpuCacheStatus::SkipRasterization => continue,
             };
 
-            let image = cache.get_image_uncached(font_system, cache_key).unwrap();
+            let (image_data, width, height) = match cache_key {
+                GlyphonCacheKey::Text(cache_key) => {
+                    let image = cache.get_image_uncached(font_system, cache_key).unwrap();
+                    let width = image.placement.width as usize;
+                    let height = image.placement.height as usize;
 
-            let width = image.placement.width as usize;
-            let height = image.placement.height as usize;
+                    (image.data, width, height)
+                }
+                GlyphonCacheKey::Custom(cache_key) => {
+                    let input = CustomGlyphInput {
+                        id: cache_key.glyph_id,
+                        width: cache_key.width,
+                        height: cache_key.height,
+                        x_bin: cache_key.x_bin,
+                        y_bin: cache_key.y_bin,
+                        scale: scale_factor,
+                    };
+
+                    let Some(rasterized_glyph) = (rasterize_custom_glyph)(input) else {
+                        panic!("Custom glyph rasterizer returned `None` when it previously returned `Some` for the same input {:?}", &input);
+                    };
+
+                    // Sanity checks on the rasterizer output
+                    rasterized_glyph.validate(&input, Some(self.kind.as_content_type()));
+
+                    (
+                        rasterized_glyph.data,
+                        cache_key.width as usize,
+                        cache_key.height as usize,
+                    )
+                }
+            };
 
             queue.write_texture(
                 ImageCopyTexture {
@@ -173,7 +204,7 @@ impl InnerAtlas {
                     },
                     aspect: TextureAspect::All,
                 },
-                &image.data,
+                &image_data,
                 ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(width as u32 * self.kind.num_channels() as u32),
@@ -222,6 +253,13 @@ impl Kind {
                     TextureFormat::Rgba8Unorm
                 }
             }
+        }
+    }
+
+    fn as_content_type(&self) -> ContentType {
+        match self {
+            Self::Mask => ContentType::Mask,
+            Self::Color { .. } => ContentType::Color,
         }
     }
 }
@@ -313,10 +351,26 @@ impl TextAtlas {
         font_system: &mut FontSystem,
         cache: &mut SwashCache,
         content_type: ContentType,
+        scale_factor: f32,
+        rasterize_custom_glyph: impl FnMut(CustomGlyphInput) -> Option<CustomGlyphOutput>,
     ) -> bool {
         let did_grow = match content_type {
-            ContentType::Mask => self.mask_atlas.grow(device, queue, font_system, cache),
-            ContentType::Color => self.color_atlas.grow(device, queue, font_system, cache),
+            ContentType::Mask => self.mask_atlas.grow(
+                device,
+                queue,
+                font_system,
+                cache,
+                scale_factor,
+                rasterize_custom_glyph,
+            ),
+            ContentType::Color => self.color_atlas.grow(
+                device,
+                queue,
+                font_system,
+                cache,
+                scale_factor,
+                rasterize_custom_glyph,
+            ),
         };
 
         if did_grow {
@@ -326,7 +380,7 @@ impl TextAtlas {
         did_grow
     }
 
-    pub(crate) fn glyph(&self, glyph: &CacheKey) -> Option<&GlyphDetails> {
+    pub(crate) fn glyph(&self, glyph: &GlyphonCacheKey) -> Option<&GlyphDetails> {
         self.mask_atlas
             .glyph_cache
             .peek(glyph)

@@ -189,7 +189,6 @@ impl winit::application::ApplicationHandler for Application {
                             custom_glyphs: &[],
                         }],
                         swash_cache,
-                        |_| None,
                     )
                     .unwrap();
 

@@ -115,19 +115,17 @@ impl WindowState {
             };
 
             // Calculate the scale based on the "glyph size".
-            let glyph_size = input.size * input.scale;
             let svg_size = svg.size();
-            let max_side_len = svg_size.width().max(svg_size.height());
-            let scale = glyph_size / max_side_len;
+            let scale_x = input.width as f32 / svg_size.width();
+            let scale_y = input.height as f32 / svg_size.height();
 
-            // Create a buffer to write pixels to.
-            let width = (svg_size.width() * scale).ceil() as u32;
-            let height = (svg_size.height() * scale).ceil() as u32;
-            let Some(mut pixmap) = resvg::tiny_skia::Pixmap::new(width, height) else {
+            let Some(mut pixmap) =
+                resvg::tiny_skia::Pixmap::new(input.width as u32, input.height as u32)
+            else {
                 return None;
             };
 
-            let mut transform = resvg::usvg::Transform::from_scale(scale, scale);
+            let mut transform = resvg::usvg::Transform::from_scale(scale_x, scale_y);
 
             // Offset the glyph by the subpixel amount.
             let offset_x = input.x_bin.as_float();
@@ -145,12 +143,7 @@ impl WindowState {
                 pixmap.data().to_vec()
             };
 
-            Some(CustomGlyphOutput {
-                data,
-                width,
-                height,
-                content_type,
-            })
+            Some(CustomGlyphOutput { data, content_type })
         };
 
         Self {
@@ -233,7 +226,7 @@ impl winit::application::ApplicationHandler for Application {
                 );
 
                 text_renderer
-                    .prepare(
+                    .prepare_with_custom(
                         device,
                         queue,
                         font_system,
@@ -256,32 +249,40 @@ impl winit::application::ApplicationHandler for Application {
                                     id: 0,
                                     left: 300.0,
                                     top: 5.0,
-                                    size: 64.0,
+                                    width: 64.0,
+                                    height: 64.0,
                                     color: Some(Color::rgb(200, 200, 255)),
+                                    snap_to_physical_pixel: true,
                                     metadata: 0,
                                 },
                                 CustomGlyph {
                                     id: 1,
                                     left: 400.0,
                                     top: 5.0,
-                                    size: 64.0,
+                                    width: 64.0,
+                                    height: 64.0,
                                     color: None,
+                                    snap_to_physical_pixel: true,
                                     metadata: 0,
                                 },
                                 CustomGlyph {
                                     id: 0,
                                     left: 300.0,
                                     top: 130.0,
-                                    size: 64.0,
+                                    width: 64.0,
+                                    height: 64.0,
                                     color: Some(Color::rgb(200, 255, 200)),
+                                    snap_to_physical_pixel: true,
                                     metadata: 0,
                                 },
                                 CustomGlyph {
                                     id: 1,
                                     left: 400.0,
                                     top: 130.0,
-                                    size: 64.0,
+                                    width: 64.0,
+                                    height: 64.0,
                                     color: None,
+                                    snap_to_physical_pixel: true,
                                     metadata: 0,
                                 },
                             ],

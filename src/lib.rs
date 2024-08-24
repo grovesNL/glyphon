@@ -5,16 +5,19 @@
 //! [etagere]: https://github.com/nical/etagere
 
 mod cache;
+mod custom_glyph;
 mod error;
 mod text_atlas;
 mod text_render;
 mod viewport;
 
 pub use cache::Cache;
+pub use custom_glyph::{
+    ContentType, CustomGlyph, CustomGlyphId, CustomGlyphInput, CustomGlyphOutput,
+};
 pub use error::{PrepareError, RenderError};
 pub use text_atlas::{ColorMode, TextAtlas};
-pub use text_render::{ContentType, TextRenderer};
-pub use text_render::{CustomGlyphInput, CustomGlyphOutput};
+pub use text_render::TextRenderer;
 pub use viewport::Viewport;
 
 // Re-export all top-level types from `cosmic-text` for convenience.
@@ -120,25 +123,3 @@ pub struct TextArea<'a> {
     /// Additional custom glyphs to render
     pub custom_glyphs: &'a [CustomGlyph],
 }
-
-/// A custom glyph to render
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct CustomGlyph {
-    /// The unique identifier for this glyph
-    pub id: CustomGlyphId,
-    /// The position of the left edge of the glyph
-    pub left: f32,
-    /// The position of the top edge of the glyph
-    pub top: f32,
-    /// The size of the glyph
-    pub size: f32,
-    /// The color of this glyph (only relevant if the glyph is rendered with the
-    /// type [`ContentType::Mask`])
-    ///
-    /// Set to `None` to use [`TextArea::default_color`].
-    pub color: Option<Color>,
-    /// Additional metadata about the glyph
-    pub metadata: usize,
-}
-
-pub type CustomGlyphId = u16;

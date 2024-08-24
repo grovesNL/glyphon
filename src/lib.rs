@@ -118,12 +118,12 @@ pub struct TextArea<'a> {
     pub default_color: Color,
 
     /// Additional custom glyphs to render
-    pub custom_glyphs: &'a [CustomGlyphDesc],
+    pub custom_glyphs: &'a [CustomGlyph],
 }
 
 /// A custom glyph to render
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct CustomGlyphDesc {
+pub struct CustomGlyph {
     /// The unique identifier for this glyph
     pub id: CustomGlyphID,
     /// The position of the left edge of the glyph

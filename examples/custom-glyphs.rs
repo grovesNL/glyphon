@@ -1,5 +1,5 @@
 use glyphon::{
-    Attrs, Buffer, Cache, Color, ContentType, CustomGlyphDesc, CustomGlyphInput, CustomGlyphOutput,
+    Attrs, Buffer, Cache, Color, ContentType, CustomGlyph, CustomGlyphInput, CustomGlyphOutput,
     Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds,
     TextRenderer, Viewport,
 };
@@ -252,7 +252,7 @@ impl winit::application::ApplicationHandler for Application {
                             },
                             default_color: Color::rgb(255, 255, 255),
                             custom_glyphs: &[
-                                CustomGlyphDesc {
+                                CustomGlyph {
                                     id: 0,
                                     left: 300.0,
                                     top: 5.0,
@@ -260,7 +260,7 @@ impl winit::application::ApplicationHandler for Application {
                                     color: Some(Color::rgb(200, 200, 255)),
                                     metadata: 0,
                                 },
-                                CustomGlyphDesc {
+                                CustomGlyph {
                                     id: 1,
                                     left: 400.0,
                                     top: 5.0,
@@ -268,7 +268,7 @@ impl winit::application::ApplicationHandler for Application {
                                     color: None,
                                     metadata: 0,
                                 },
-                                CustomGlyphDesc {
+                                CustomGlyph {
                                     id: 0,
                                     left: 300.0,
                                     top: 130.0,
@@ -276,7 +276,7 @@ impl winit::application::ApplicationHandler for Application {
                                     color: Some(Color::rgb(200, 255, 200)),
                                     metadata: 0,
                                 },
-                                CustomGlyphDesc {
+                                CustomGlyph {
                                     id: 1,
                                     left: 400.0,
                                     top: 130.0,

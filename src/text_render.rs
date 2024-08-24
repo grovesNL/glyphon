@@ -510,17 +510,17 @@ pub enum ContentType {
 
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub(crate) enum TextColorConversion {
+enum TextColorConversion {
     None = 0,
     ConvertToLinear = 1,
 }
 
-pub(crate) fn next_copy_buffer_size(size: u64) -> u64 {
+fn next_copy_buffer_size(size: u64) -> u64 {
     let align_mask = COPY_BUFFER_ALIGNMENT - 1;
     ((size.next_power_of_two() + align_mask) & !align_mask).max(COPY_BUFFER_ALIGNMENT)
 }
 
-pub(crate) fn create_oversized_buffer(
+fn create_oversized_buffer(
     device: &Device,
     label: Option<&str>,
     contents: &[u8],

@@ -162,7 +162,7 @@ impl winit::application::ApplicationHandler for Application {
         let (width, height) = (800, 600);
         let window_attributes = Window::default_attributes()
             .with_inner_size(LogicalSize::new(width as f64, height as f64))
-            .with_title("glyphon hello world");
+            .with_title("glyphon text sizes test");
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
         self.window_state = Some(pollster::block_on(WindowState::new(window)));

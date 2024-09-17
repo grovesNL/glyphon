@@ -5,18 +5,20 @@
 //! [etagere]: https://github.com/nical/etagere
 
 mod cache;
+mod custom_glyph;
 mod error;
 mod text_atlas;
 mod text_render;
 mod viewport;
 
 pub use cache::Cache;
+pub use custom_glyph::{
+    ContentType, CustomGlyph, CustomGlyphId, RasterizationRequest, RasterizedCustomGlyph,
+};
 pub use error::{PrepareError, RenderError};
 pub use text_atlas::{ColorMode, TextAtlas};
 pub use text_render::TextRenderer;
 pub use viewport::Viewport;
-
-use text_render::ContentType;
 
 // Re-export all top-level types from `cosmic-text` for convenience.
 #[doc(no_inline)]
@@ -117,4 +119,7 @@ pub struct TextArea<'a> {
     pub bounds: TextBounds,
     // The default color of the text area.
     pub default_color: Color,
+
+    /// Additional custom glyphs to render
+    pub custom_glyphs: &'a [CustomGlyph],
 }

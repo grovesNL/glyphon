@@ -1,7 +1,7 @@
 use glyphon::{
-    Attrs, Buffer, Cache, Color, ContentType, CustomGlyph, RasterizationRequest, RasterizedCustomGlyph,
-    Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds,
-    TextRenderer, Viewport,
+    Attrs, Buffer, Cache, Color, ContentType, CustomGlyph, Family, FontSystem, Metrics,
+    RasterizeCustomGlyphRequest, RasterizedCustomGlyph, Resolution, Shaping, SwashCache, TextArea,
+    TextAtlas, TextBounds, TextRenderer, Viewport,
 };
 use std::sync::Arc;
 use wgpu::{
@@ -28,16 +28,13 @@ struct WindowState {
     queue: wgpu::Queue,
     surface: wgpu::Surface<'static>,
     surface_config: SurfaceConfiguration,
-
     font_system: FontSystem,
     swash_cache: SwashCache,
     viewport: glyphon::Viewport,
     atlas: glyphon::TextAtlas,
     text_renderer: glyphon::TextRenderer,
     text_buffer: glyphon::Buffer,
-
-    rasterize_svg: Box<dyn Fn(RasterizationRequest) -> Option<RasterizedCustomGlyph>>,
-
+    rasterize_svg: Box<dyn Fn(RasterizeCustomGlyphRequest) -> Option<RasterizedCustomGlyph>>,
     // Make sure that the winit window is last in the struct so that
     // it is dropped after the wgpu surface is dropped, otherwise the
     // program may crash when closed. This is probably a bug in wgpu.
@@ -106,45 +103,46 @@ impl WindowState {
         let svg_0 = resvg::usvg::Tree::from_data(LION_SVG, &Default::default()).unwrap();
         let svg_1 = resvg::usvg::Tree::from_data(EAGLE_SVG, &Default::default()).unwrap();
 
-        let rasterize_svg = move |input: RasterizationRequest| -> Option<RasterizedCustomGlyph> {
-            // Select the svg data based on the custom glyph ID.
-            let (svg, content_type) = match input.id {
-                0 => (&svg_0, ContentType::Mask),
-                1 => (&svg_1, ContentType::Color),
-                _ => return None,
+        let rasterize_svg =
+            move |input: RasterizeCustomGlyphRequest| -> Option<RasterizedCustomGlyph> {
+                // Select the svg data based on the custom glyph ID.
+                let (svg, content_type) = match input.id {
+                    0 => (&svg_0, ContentType::Mask),
+                    1 => (&svg_1, ContentType::Color),
+                    _ => return None,
+                };
+
+                // Calculate the scale based on the "glyph size".
+                let svg_size = svg.size();
+                let scale_x = input.width as f32 / svg_size.width();
+                let scale_y = input.height as f32 / svg_size.height();
+
+                let Some(mut pixmap) =
+                    resvg::tiny_skia::Pixmap::new(input.width as u32, input.height as u32)
+                else {
+                    return None;
+                };
+
+                let mut transform = resvg::usvg::Transform::from_scale(scale_x, scale_y);
+
+                // Offset the glyph by the subpixel amount.
+                let offset_x = input.x_bin.as_float();
+                let offset_y = input.y_bin.as_float();
+                if offset_x != 0.0 || offset_y != 0.0 {
+                    transform = transform.post_translate(offset_x, offset_y);
+                }
+
+                resvg::render(svg, transform, &mut pixmap.as_mut());
+
+                let data: Vec<u8> = if let ContentType::Mask = content_type {
+                    // Only use the alpha channel for symbolic icons.
+                    pixmap.data().iter().skip(3).step_by(4).copied().collect()
+                } else {
+                    pixmap.data().to_vec()
+                };
+
+                Some(RasterizedCustomGlyph { data, content_type })
             };
-
-            // Calculate the scale based on the "glyph size".
-            let svg_size = svg.size();
-            let scale_x = input.width as f32 / svg_size.width();
-            let scale_y = input.height as f32 / svg_size.height();
-
-            let Some(mut pixmap) =
-                resvg::tiny_skia::Pixmap::new(input.width as u32, input.height as u32)
-            else {
-                return None;
-            };
-
-            let mut transform = resvg::usvg::Transform::from_scale(scale_x, scale_y);
-
-            // Offset the glyph by the subpixel amount.
-            let offset_x = input.x_bin.as_float();
-            let offset_y = input.y_bin.as_float();
-            if offset_x != 0.0 || offset_y != 0.0 {
-                transform = transform.post_translate(offset_x, offset_y);
-            }
-
-            resvg::render(svg, transform, &mut pixmap.as_mut());
-
-            let data: Vec<u8> = if let ContentType::Mask = content_type {
-                // Only use the alpha channel for symbolic icons.
-                pixmap.data().iter().skip(3).step_by(4).copied().collect()
-            } else {
-                pixmap.data().to_vec()
-            };
-
-            Some(RasterizedCustomGlyph { data, content_type })
-        };
 
         Self {
             device,

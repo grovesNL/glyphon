@@ -1,5 +1,11 @@
 use crate::{GlyphToRender, Params};
-
+use std::{
+    borrow::Cow,
+    mem,
+    num::NonZeroU64,
+    ops::Deref,
+    sync::{Arc, RwLock},
+};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry,
     BindingResource, BindingType, BlendState, Buffer, BufferBindingType, ColorTargetState,
@@ -10,12 +16,8 @@ use wgpu::{
     TextureFormat, TextureSampleType, TextureView, TextureViewDimension, VertexFormat, VertexState,
 };
 
-use std::borrow::Cow;
-use std::mem;
-use std::num::NonZeroU64;
-use std::ops::Deref;
-use std::sync::{Arc, RwLock};
-
+/// A cache to share common resources (e.g., pipelines, layouts, shaders) between multiple text
+/// renderers.
 #[derive(Debug, Clone)]
 pub struct Cache(Arc<Inner>);
 
@@ -38,6 +40,7 @@ struct Inner {
 }
 
 impl Cache {
+    /// Creates a new `Cache` with the given `device`.
     pub fn new(device: &Device) -> Self {
         let sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("glyphon sampler"),

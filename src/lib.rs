@@ -13,7 +13,7 @@ mod viewport;
 
 pub use cache::Cache;
 pub use custom_glyph::{
-    ContentType, CustomGlyph, CustomGlyphId, RasterizationRequest, RasterizedCustomGlyph,
+    ContentType, CustomGlyph, CustomGlyphId, RasterizeCustomGlyphRequest, RasterizedCustomGlyph,
 };
 pub use error::{PrepareError, RenderError};
 pub use text_atlas::{ColorMode, TextAtlas};
@@ -117,9 +117,8 @@ pub struct TextArea<'a> {
     /// The visible bounds of the text area. This is used to clip the text and doesn't have to
     /// match the `left` and `top` values.
     pub bounds: TextBounds,
-    // The default color of the text area.
+    /// The default color of the text area.
     pub default_color: Color,
-
-    /// Additional custom glyphs to render
+    /// Additional custom glyphs to render.
     pub custom_glyphs: &'a [CustomGlyph],
 }

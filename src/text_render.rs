@@ -1,7 +1,7 @@
 use crate::{
-    custom_glyph::CustomGlyphCacheKey, ColorMode, ContentType, RasterizationRequest, RasterizedCustomGlyph,
-    FontSystem, GlyphDetails, GlyphToRender, GpuCacheStatus, PrepareError, RenderError, SwashCache,
-    SwashContent, TextArea, TextAtlas, Viewport,
+    custom_glyph::CustomGlyphCacheKey, ColorMode, ContentType, FontSystem, GlyphDetails,
+    GlyphToRender, GpuCacheStatus, PrepareError, RasterizeCustomGlyphRequest,
+    RasterizedCustomGlyph, RenderError, SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
 };
 use cosmic_text::{Color, SubpixelBin};
 use std::{slice, sync::Arc};
@@ -104,7 +104,7 @@ impl TextRenderer {
         viewport: &Viewport,
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
-        rasterize_custom_glyph: impl FnMut(RasterizationRequest) -> Option<RasterizedCustomGlyph>,
+        rasterize_custom_glyph: impl FnMut(RasterizeCustomGlyphRequest) -> Option<RasterizedCustomGlyph>,
     ) -> Result<(), PrepareError> {
         self.prepare_with_depth_and_custom(
             device,
@@ -130,7 +130,9 @@ impl TextRenderer {
         text_areas: impl IntoIterator<Item = TextArea<'a>>,
         cache: &mut SwashCache,
         mut metadata_to_depth: impl FnMut(usize) -> f32,
-        mut rasterize_custom_glyph: impl FnMut(RasterizationRequest) -> Option<RasterizedCustomGlyph>,
+        mut rasterize_custom_glyph: impl FnMut(
+            RasterizeCustomGlyphRequest,
+        ) -> Option<RasterizedCustomGlyph>,
     ) -> Result<(), PrepareError> {
         self.glyph_vertices.clear();
 
@@ -193,7 +195,7 @@ impl TextRenderer {
                             return None;
                         }
 
-                        let input = RasterizationRequest {
+                        let input = RasterizeCustomGlyphRequest {
                             id: glyph.id,
                             width,
                             height,
@@ -202,9 +204,7 @@ impl TextRenderer {
                             scale: text_area.scale,
                         };
 
-                        let Some(output) = (rasterize_custom_glyph)(input) else {
-                            return None;
-                        };
+                        let output = (rasterize_custom_glyph)(input)?;
 
                         output.validate(&input, None);
 
@@ -268,11 +268,8 @@ impl TextRenderer {
                          font_system,
                          _rasterize_custom_glyph|
                          -> Option<GetGlyphImageResult> {
-                            let Some(image) =
-                                cache.get_image_uncached(font_system, physical_glyph.cache_key)
-                            else {
-                                return None;
-                            };
+                            let image =
+                                cache.get_image_uncached(font_system, physical_glyph.cache_key)?;
 
                             let content_type = match image.content {
                                 SwashContent::Color => ContentType::Color,
@@ -429,7 +426,7 @@ fn prepare_glyph<R>(
     mut rasterize_custom_glyph: R,
 ) -> Result<Option<GlyphToRender>, PrepareError>
 where
-    R: FnMut(RasterizationRequest) -> Option<RasterizedCustomGlyph>,
+    R: FnMut(RasterizeCustomGlyphRequest) -> Option<RasterizedCustomGlyph>,
 {
     if atlas.mask_atlas.glyph_cache.contains(&cache_key) {
         atlas.mask_atlas.promote(cache_key);

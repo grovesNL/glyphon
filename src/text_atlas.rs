@@ -1,6 +1,6 @@
 use crate::{
-    text_render::GlyphonCacheKey, Cache, ContentType, RasterizationRequest, RasterizedCustomGlyph,
-    FontSystem, GlyphDetails, GpuCacheStatus, SwashCache,
+    text_render::GlyphonCacheKey, Cache, ContentType, RasterizeCustomGlyphRequest, FontSystem,
+    GlyphDetails, GpuCacheStatus, RasterizedCustomGlyph, SwashCache,
 };
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
@@ -124,7 +124,9 @@ impl InnerAtlas {
         font_system: &mut FontSystem,
         cache: &mut SwashCache,
         scale_factor: f32,
-        mut rasterize_custom_glyph: impl FnMut(RasterizationRequest) -> Option<RasterizedCustomGlyph>,
+        mut rasterize_custom_glyph: impl FnMut(
+            RasterizeCustomGlyphRequest,
+        ) -> Option<RasterizedCustomGlyph>,
     ) -> bool {
         if self.size >= self.max_texture_dimension_2d {
             return false;
@@ -169,7 +171,7 @@ impl InnerAtlas {
                     (image.data, width, height)
                 }
                 GlyphonCacheKey::Custom(cache_key) => {
-                    let input = RasterizationRequest {
+                    let input = RasterizeCustomGlyphRequest {
                         id: cache_key.glyph_id,
                         width: cache_key.width,
                         height: cache_key.height,
@@ -264,7 +266,7 @@ impl Kind {
     }
 }
 
-/// The color mode of an [`Atlas`].
+/// The color mode of a [`TextAtlas`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorMode {
     /// Accurate color management.
@@ -352,7 +354,9 @@ impl TextAtlas {
         cache: &mut SwashCache,
         content_type: ContentType,
         scale_factor: f32,
-        rasterize_custom_glyph: impl FnMut(RasterizationRequest) -> Option<RasterizedCustomGlyph>,
+        rasterize_custom_glyph: impl FnMut(
+            RasterizeCustomGlyphRequest,
+        ) -> Option<RasterizedCustomGlyph>,
     ) -> bool {
         let did_grow = match content_type {
             ContentType::Mask => self.mask_atlas.grow(

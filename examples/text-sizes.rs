@@ -244,6 +244,7 @@ impl winit::application::ApplicationHandler for Application {
                                 bottom: top.floor() as i32 + physical_size.height,
                             },
                             default_color: FONT_COLOR,
+                            custom_glyphs: &[],
                         };
 
                         let total_lines = b

@@ -19,7 +19,7 @@ pub struct CustomGlyph {
     /// The color of this glyph (only relevant if the glyph is rendered with the
     /// type [`ContentType::Mask`])
     ///
-    /// Set to `None` to use [`TextArea::default_color`].
+    /// Set to `None` to use [`crate::TextArea::default_color`].
     pub color: Option<Color>,
     /// If `true`, then this glyph will be snapped to the nearest whole physical
     /// pixel and the resulting `SubpixelBin`'s in `RasterizationRequest` will always
@@ -31,7 +31,7 @@ pub struct CustomGlyph {
 
 /// A request to rasterize a custom glyph
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct RasterizationRequest {
+pub struct RasterizeCustomGlyphRequest {
     /// The unique identifier of the glyph
     pub id: CustomGlyphId,
     /// The width of the glyph in physical pixels
@@ -63,7 +63,11 @@ pub struct RasterizedCustomGlyph {
 }
 
 impl RasterizedCustomGlyph {
-    pub(crate) fn validate(&self, input: &RasterizationRequest, expected_type: Option<ContentType>) {
+    pub(crate) fn validate(
+        &self,
+        input: &RasterizeCustomGlyphRequest,
+        expected_type: Option<ContentType>,
+    ) {
         if let Some(expected_type) = expected_type {
             assert_eq!(self.content_type, expected_type, "Custom glyph rasterizer must always produce the same content type for a given input. Expected {:?}, got {:?}. Input: {:?}", expected_type, self.content_type, input);
         }

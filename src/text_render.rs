@@ -331,11 +331,11 @@ impl TextRenderer {
     }
 
     /// Renders all layouts that were previously provided to `prepare`.
-    pub fn render<'s, 'pass>(
-        &'s self,
-        atlas: &'s TextAtlas,
-        viewport: &'s Viewport,
-        pass: &mut RenderPass<'pass>,
+    pub fn render(
+        &self,
+        atlas: &TextAtlas,
+        viewport: &Viewport,
+        pass: &mut RenderPass<'_>,
     ) -> Result<(), RenderError> {
         if self.glyph_vertices.is_empty() {
             return Ok(());

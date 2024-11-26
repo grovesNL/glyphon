@@ -505,19 +505,16 @@ where
             (GpuCacheStatus::SkipRasterization, None, inner)
         };
 
-        inner.glyph_cache.put(
-            cache_key,
-            GlyphDetails {
-                width: image.width,
-                height: image.height,
-                gpu_cache,
-                atlas_id,
-                top: image.top,
-                left: image.left,
-            },
-        );
         inner.glyphs_in_use.insert(cache_key);
-        inner.glyph_cache.get(&cache_key).unwrap()
+        // Insert the glyph into the cache and return the details reference
+        inner.glyph_cache.get_or_insert(cache_key, || GlyphDetails {
+            width: image.width,
+            height: image.height,
+            gpu_cache,
+            atlas_id,
+            top: image.top,
+            left: image.left,
+        })
     };
 
     let mut x = x + details.left as i32;

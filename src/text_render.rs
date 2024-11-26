@@ -428,10 +428,12 @@ fn prepare_glyph<R>(
 where
     R: FnMut(RasterizeCustomGlyphRequest) -> Option<RasterizedCustomGlyph>,
 {
-    if atlas.mask_atlas.glyph_cache.contains(&cache_key) {
-        atlas.mask_atlas.promote(cache_key);
-    } else if atlas.color_atlas.glyph_cache.contains(&cache_key) {
-        atlas.color_atlas.promote(cache_key);
+    let details = if let Some(details) = atlas.mask_atlas.glyph_cache.get(&cache_key) {
+        atlas.mask_atlas.glyphs_in_use.insert(cache_key);
+        details
+    } else if let Some(details) = atlas.color_atlas.glyph_cache.get(&cache_key) {
+        atlas.color_atlas.glyphs_in_use.insert(cache_key);
+        details
     } else {
         let Some(image) = (get_glyph_image)(cache, font_system, &mut rasterize_custom_glyph) else {
             return Ok(None);
@@ -503,7 +505,7 @@ where
             (GpuCacheStatus::SkipRasterization, None, inner)
         };
 
-        inner.put(
+        inner.glyph_cache.put(
             cache_key,
             GlyphDetails {
                 width: image.width,
@@ -514,9 +516,9 @@ where
                 left: image.left,
             },
         );
-    }
-
-    let details = atlas.glyph(&cache_key).unwrap();
+        inner.glyphs_in_use.insert(cache_key);
+        inner.glyph_cache.get(&cache_key).unwrap()
+    };
 
     let mut x = x + details.left as i32;
     let mut y = (line_y * scale_factor).round() as i32 + y - details.top as i32;

@@ -9,6 +9,7 @@ mod state;
 
 fn run_bench(ctx: &mut Criterion) {
     let mut group = ctx.benchmark_group("Prepare");
+    group.noise_threshold(0.02);
 
     let state = state::State::new();
 

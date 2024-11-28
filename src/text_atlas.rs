@@ -107,16 +107,6 @@ impl InnerAtlas {
         self.kind.num_channels()
     }
 
-    pub(crate) fn promote(&mut self, glyph: GlyphonCacheKey) {
-        self.glyph_cache.promote(&glyph);
-        self.glyphs_in_use.insert(glyph);
-    }
-
-    pub(crate) fn put(&mut self, glyph: GlyphonCacheKey, details: GlyphDetails) {
-        self.glyph_cache.put(glyph, details);
-        self.glyphs_in_use.insert(glyph);
-    }
-
     pub(crate) fn grow(
         &mut self,
         device: &wgpu::Device,
@@ -382,13 +372,6 @@ impl TextAtlas {
         }
 
         did_grow
-    }
-
-    pub(crate) fn glyph(&self, glyph: &GlyphonCacheKey) -> Option<&GlyphDetails> {
-        self.mask_atlas
-            .glyph_cache
-            .peek(glyph)
-            .or_else(|| self.color_atlas.glyph_cache.peek(glyph))
     }
 
     pub(crate) fn inner_for_content_mut(&mut self, content_type: ContentType) -> &mut InnerAtlas {

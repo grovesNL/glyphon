@@ -42,16 +42,16 @@ fn run_bench(ctx: &mut Criterion) {
 
     for (test_name, text_areas) in &[
         (
-            "Moby Dick Chapter 1 - Single Text Area",
-            vec![include_str!("../samples/moby_dick.txt")],
+            "Latin - Single Text Area",
+            vec![include_str!("../samples/latin.txt")],
         ),
         (
             "Arabic - Single Text Area",
             vec![include_str!("../samples/arabic.txt")],
         ),
         (
-            "Moby Dick Chapter 1 - Many Text Areas",
-            include_str!("../samples/moby_dick.txt")
+            "Latin - Many Text Areas",
+            include_str!("../samples/latin.txt")
                 .repeat(100)
                 .split('\n')
                 .collect(),
@@ -59,7 +59,7 @@ fn run_bench(ctx: &mut Criterion) {
         (
             "Arabic - Many Text Areas",
             include_str!("../samples/arabic.txt")
-                .repeat(1000)
+                .repeat(20)
                 .split('\n')
                 .collect(),
         ),

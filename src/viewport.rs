@@ -1,6 +1,12 @@
 use crate::{Cache, Params, Resolution};
-use std::{mem, slice};
+
+#[cfg(feature = "egui")]
+use egui_wgpu::wgpu::{BindGroup, Buffer, BufferDescriptor, BufferUsages, Device, Queue};
+
+#[cfg(not(feature = "egui"))]
 use wgpu::{BindGroup, Buffer, BufferDescriptor, BufferUsages, Device, Queue};
+
+use std::{mem, slice};
 
 /// Controls the visible area of all text for a given renderer. Any text outside of the visible
 /// area will be clipped.

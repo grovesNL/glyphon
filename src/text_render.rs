@@ -4,7 +4,16 @@ use crate::{
     RasterizedCustomGlyph, RenderError, SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
 };
 use cosmic_text::{Color, SubpixelBin};
+
+#[cfg(feature = "egui")]
+use egui_wgpu::wgpu::{
+    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
+    ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,
+    COPY_BUFFER_ALIGNMENT,
+};
+
 use std::{slice, sync::Arc};
+#[cfg(not(feature = "egui"))]
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
     ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,

@@ -1,3 +1,4 @@
+use egui_wgpu::wgpu;
 use glyphon::{
     Attrs, Buffer, Cache, Color, ContentType, CustomGlyph, Family, FontSystem, Metrics,
     RasterizeCustomGlyphRequest, RasterizedCustomGlyph, Resolution, Shaping, SwashCache, TextArea,

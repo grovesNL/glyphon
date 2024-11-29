@@ -8,7 +8,8 @@ repository = "https://github.com/grovesNL/glyphon"
 license = "MIT OR Apache-2.0 OR Zlib"
 
 [dependencies]
-wgpu = { version = "23", default-features = false, features = ["wgsl"] }
+wgpu = { version = "23", default-features = false, features = ["wgsl"], optional = true }
+egui-wgpu = { version = "0.29.1", optional = true }
 etagere = "0.2.10"
 cosmic-text = "0.12"
 lru = { version = "0.12.1", default-features = false }
@@ -24,3 +25,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 [[bench]]
 name = "prepare"
 harness = false
+
+[features]
+default = ["wgpu"]
+egui = ["egui-wgpu"]

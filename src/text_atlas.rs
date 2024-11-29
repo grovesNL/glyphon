@@ -1,16 +1,25 @@
 use crate::{
-    text_render::GlyphonCacheKey, Cache, ContentType, RasterizeCustomGlyphRequest, FontSystem,
-    GlyphDetails, GpuCacheStatus, RasterizedCustomGlyph, SwashCache,
+    text_render::GlyphonCacheKey, Cache, ContentType, FontSystem, GlyphDetails, GpuCacheStatus,
+    RasterizeCustomGlyphRequest, RasterizedCustomGlyph, SwashCache,
 };
-use etagere::{size2, Allocation, BucketedAtlasAllocator};
-use lru::LruCache;
-use rustc_hash::FxHasher;
-use std::{collections::HashSet, hash::BuildHasherDefault, sync::Arc};
+#[cfg(feature = "egui")]
+use {
+    BindGroup, DepthStencilState, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
+    MultisampleState, Origin3d, Queue, RenderPipeline, Texture, TextureAspect, TextureDescriptor,
+    TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+};
+use wgpu::{BindGroup, DepthStencilState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPipeline, Texture, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor};
+#[cfg(feature = "egui")]
 use wgpu::{
     BindGroup, DepthStencilState, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
     MultisampleState, Origin3d, Queue, RenderPipeline, Texture, TextureAspect, TextureDescriptor,
     TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
 };
+
+use etagere::{size2, Allocation, BucketedAtlasAllocator};
+use lru::LruCache;
+use rustc_hash::FxHasher;
+use std::{collections::HashSet, hash::BuildHasherDefault, sync::Arc};
 
 type Hasher = BuildHasherDefault<FxHasher>;
 
@@ -109,8 +118,8 @@ impl InnerAtlas {
 
     pub(crate) fn grow(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        device: &Device,
+        queue: &Queue,
         font_system: &mut FontSystem,
         cache: &mut SwashCache,
         scale_factor: f32,
@@ -235,7 +244,7 @@ impl Kind {
         }
     }
 
-    fn texture_format(self) -> wgpu::TextureFormat {
+    fn texture_format(self) -> TextureFormat {
         match self {
             Kind::Mask => TextureFormat::R8Unorm,
             Kind::Color { srgb } => {
@@ -338,15 +347,13 @@ impl TextAtlas {
 
     pub(crate) fn grow(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        device: &Device,
+        queue: &Queue,
         font_system: &mut FontSystem,
         cache: &mut SwashCache,
         content_type: ContentType,
         scale_factor: f32,
-        rasterize_custom_glyph: impl FnMut(
-            RasterizeCustomGlyphRequest,
-        ) -> Option<RasterizedCustomGlyph>,
+        rasterize_custom_glyph: impl FnMut(RasterizeCustomGlyphRequest) -> Option<RasterizedCustomGlyph>,
     ) -> bool {
         let did_grow = match content_type {
             ContentType::Mask => self.mask_atlas.grow(
@@ -391,7 +398,7 @@ impl TextAtlas {
             .get_or_create_pipeline(device, self.format, multisample, depth_stencil)
     }
 
-    fn rebind(&mut self, device: &wgpu::Device) {
+    fn rebind(&mut self, device: &Device) {
         self.bind_group = self.cache.create_atlas_bind_group(
             device,
             &self.color_atlas.texture_view,

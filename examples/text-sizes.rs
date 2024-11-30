@@ -15,10 +15,10 @@ use winit::{
     window::Window,
 };
 use WPGU::{
-    CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Instance, InstanceDescriptor,
-    LoadOp, MultisampleState, Operations, PresentMode, RenderPassColorAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat,
-    TextureUsages, TextureViewDescriptor,
+    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Instance,
+    InstanceDescriptor, LoadOp, MultisampleState, Operations, PresentMode, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, StoreOp, Surface,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
 };
 
 const TEXT: &str = "The quick brown fox jumped over the lazy doggo. 🐕";
@@ -27,7 +27,7 @@ const SIZES: [f32; 16] = [
     8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 18.0, 20.0, 22.0, 24.0, 28.0, 32.0, 48.0,
 ];
 const LINE_HEIGHT: f32 = 1.15;
-const BG_COLOR: wgpu::Color = wgpu::Color::WHITE;
+const BG_COLOR: WPGU::Color = WPGU::Color::WHITE;
 const FONT_COLOR: Color = Color::rgb(0, 0, 0);
 //const BG_COLOR: wgpu::Color = wgpu::Color::BLACK;
 //const FONT_COLOR: Color = Color::rgb(255, 255, 255);
@@ -41,9 +41,9 @@ fn main() {
 }
 
 struct WindowState {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    surface: wgpu::Surface<'static>,
+    device: Device,
+    queue: Queue,
+    surface: Surface<'static>,
     surface_config: SurfaceConfiguration,
     physical_size: PhysicalSize<i32>,
     scale_factor: f32,
@@ -286,7 +286,7 @@ impl winit::application::ApplicationHandler for Application {
                             resolve_target: None,
                             ops: Operations {
                                 load: LoadOp::Clear(BG_COLOR),
-                                store: wgpu::StoreOp::Store,
+                                store: StoreOp::Store,
                             },
                         })],
                         depth_stencil_attachment: None,

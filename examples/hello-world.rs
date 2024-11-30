@@ -10,10 +10,10 @@ use glyphon::{
 use std::sync::Arc;
 use winit::{dpi::LogicalSize, event::WindowEvent, event_loop::EventLoop, window::Window};
 use WPGU::{
-    CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Instance, InstanceDescriptor,
-    LoadOp, MultisampleState, Operations, PresentMode, RenderPassColorAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat,
-    TextureUsages, TextureViewDescriptor,
+    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Instance,
+    InstanceDescriptor, LoadOp, MultisampleState, Operations, PresentMode, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, StoreOp, Surface,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
 };
 
 fn main() {
@@ -24,9 +24,9 @@ fn main() {
 }
 
 struct WindowState {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    surface: wgpu::Surface<'static>,
+    device: Device,
+    queue: Queue,
+    surface: Surface<'static>,
     surface_config: SurfaceConfiguration,
 
     font_system: FontSystem,
@@ -208,8 +208,8 @@ impl winit::application::ApplicationHandler for Application {
                             view: &view,
                             resolve_target: None,
                             ops: Operations {
-                                load: LoadOp::Clear(wgpu::Color::BLACK),
-                                store: wgpu::StoreOp::Store,
+                                load: LoadOp::Clear(WPGU::Color::BLACK),
+                                store: StoreOp::Store,
                             },
                         })],
                         depth_stencil_attachment: None,

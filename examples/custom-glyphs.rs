@@ -11,10 +11,10 @@ use glyphon::{
 use std::sync::Arc;
 use winit::{dpi::LogicalSize, event::WindowEvent, event_loop::EventLoop, window::Window};
 use WPGU::{
-    CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Instance, InstanceDescriptor,
-    LoadOp, MultisampleState, Operations, PresentMode, RenderPassColorAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat,
-    TextureUsages, TextureViewDescriptor,
+    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Instance,
+    InstanceDescriptor, LoadOp, MultisampleState, Operations, PresentMode, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, StoreOp, Surface,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
 };
 
 // Example SVG icons are from https://publicdomainvectors.org/
@@ -29,9 +29,9 @@ fn main() {
 }
 
 struct WindowState {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    surface: wgpu::Surface<'static>,
+    device: Device,
+    queue: Queue,
+    surface: Surface<'static>,
     surface_config: SurfaceConfiguration,
     font_system: FontSystem,
     swash_cache: SwashCache,
@@ -303,13 +303,13 @@ impl winit::application::ApplicationHandler for Application {
                             view: &view,
                             resolve_target: None,
                             ops: Operations {
-                                load: LoadOp::Clear(wgpu::Color {
+                                load: LoadOp::Clear(WPGU::Color {
                                     r: 0.02,
                                     g: 0.02,
                                     b: 0.02,
                                     a: 1.0,
                                 }),
-                                store: wgpu::StoreOp::Store,
+                                store: StoreOp::Store,
                             },
                         })],
                         depth_stencil_attachment: None,

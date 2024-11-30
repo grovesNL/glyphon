@@ -281,13 +281,13 @@ impl Cache {
                             layout: Some(pipeline_layout),
                             vertex: VertexState {
                                 module: shader,
-                                entry_point: Some("vs_main"),
+                                entry_point: "vs_main",
                                 buffers: vertex_buffers,
                                 compilation_options: PipelineCompilationOptions::default(),
                             },
                             fragment: Some(FragmentState {
                                 module: shader,
-                                entry_point: Some("fs_main"),
+                                entry_point: "fs_main",
                                 targets: &[Some(ColorTargetState {
                                     format,
                                     blend: Some(BlendState::ALPHA_BLENDING),

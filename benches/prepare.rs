@@ -1,9 +1,15 @@
 use cosmic_text::{Attrs, Buffer, Color, Family, FontSystem, Metrics, Shaping, SwashCache};
 use criterion::{criterion_group, criterion_main, Criterion};
-use egui_wgpu::wgpu::{MultisampleState, TextureFormat};
+
+#[cfg(feature = "egui")]
+use egui_wgpu::wgpu as WPGU;
+#[cfg(not(feature = "egui"))]
+use wgpu as WPGU;
+
 use glyphon::{
     Cache, ColorMode, Resolution, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport, Weight,
 };
+use WPGU::{MultisampleState, TextureFormat};
 
 mod state;
 
@@ -96,19 +102,18 @@ fn run_bench(ctx: &mut Criterion) {
                     })
                     .collect();
 
-                criterion::black_box(
-                    text_renderer
-                        .prepare(
-                            &state.device,
-                            &state.queue,
-                            &mut font_system,
-                            &mut atlas,
-                            &viewport,
-                            text_areas,
-                            &mut swash_cache,
-                        )
-                        .unwrap(),
-                );
+                text_renderer
+                    .prepare(
+                        &state.device,
+                        &state.queue,
+                        &mut font_system,
+                        &mut atlas,
+                        &viewport,
+                        text_areas,
+                        &mut swash_cache,
+                    )
+                    .unwrap();
+                criterion::black_box(());
 
                 atlas.trim();
             })

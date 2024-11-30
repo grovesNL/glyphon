@@ -1,16 +1,20 @@
-use egui_wgpu::wgpu;
+#[cfg(feature = "egui")]
+use egui_wgpu::wgpu as WPGU;
+#[cfg(not(feature = "egui"))]
+use wgpu as WPGU;
+
 use glyphon::{
     Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,
     TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
 use std::sync::Arc;
-use wgpu::{
+use winit::{dpi::LogicalSize, event::WindowEvent, event_loop::EventLoop, window::Window};
+use WPGU::{
     CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Instance, InstanceDescriptor,
     LoadOp, MultisampleState, Operations, PresentMode, RenderPassColorAttachment,
     RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat,
     TextureUsages, TextureViewDescriptor,
 };
-use winit::{dpi::LogicalSize, event::WindowEvent, event_loop::EventLoop, window::Window};
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
@@ -156,12 +160,12 @@ impl winit::application::ApplicationHandler for Application {
             WindowEvent::Resized(size) => {
                 surface_config.width = size.width;
                 surface_config.height = size.height;
-                surface.configure(&device, &surface_config);
+                surface.configure(device, surface_config);
                 window.request_redraw();
             }
             WindowEvent::RedrawRequested => {
                 viewport.update(
-                    &queue,
+                    queue,
                     Resolution {
                         width: surface_config.width,
                         height: surface_config.height,
@@ -213,7 +217,7 @@ impl winit::application::ApplicationHandler for Application {
                         occlusion_query_set: None,
                     });
 
-                    text_renderer.render(&atlas, &viewport, &mut pass).unwrap();
+                    text_renderer.render(atlas, viewport, &mut pass).unwrap();
                 }
 
                 queue.submit(Some(encoder.finish()));

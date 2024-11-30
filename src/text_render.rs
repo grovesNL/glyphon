@@ -6,19 +6,17 @@ use crate::{
 use cosmic_text::{Color, SubpixelBin};
 
 #[cfg(feature = "egui")]
-use egui_wgpu::wgpu::{
+use egui_wgpu::wgpu as WPGU;
+#[cfg(not(feature = "egui"))]
+use wgpu as WPGU;
+
+use WPGU::{
     Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
     ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,
     COPY_BUFFER_ALIGNMENT,
 };
 
 use std::{slice, sync::Arc};
-#[cfg(not(feature = "egui"))]
-use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
-    ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,
-    COPY_BUFFER_ALIGNMENT,
-};
 
 /// A text renderer that uses cached glyphs to render text into an existing render pass.
 pub struct TextRenderer {

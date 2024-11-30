@@ -2,15 +2,13 @@ use crate::{
     text_render::GlyphonCacheKey, Cache, ContentType, FontSystem, GlyphDetails, GpuCacheStatus,
     RasterizeCustomGlyphRequest, RasterizedCustomGlyph, SwashCache,
 };
+
 #[cfg(feature = "egui")]
-use {
-    BindGroup, DepthStencilState, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
-    MultisampleState, Origin3d, Queue, RenderPipeline, Texture, TextureAspect, TextureDescriptor,
-    TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
-};
-use wgpu::{BindGroup, DepthStencilState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPipeline, Texture, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor};
-#[cfg(feature = "egui")]
-use wgpu::{
+use egui_wgpu::wgpu as WPGU;
+#[cfg(not(feature = "egui"))]
+use wgpu as WPGU;
+
+use WPGU::{
     BindGroup, DepthStencilState, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
     MultisampleState, Origin3d, Queue, RenderPipeline, Texture, TextureAspect, TextureDescriptor,
     TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,

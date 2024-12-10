@@ -228,7 +228,7 @@ impl TextRenderer {
                 let start_y = (text_area.top + run.line_top) as i32;
                 let end_y = (text_area.top + run.line_top + run.line_height) as i32;
 
-                start_y <= bounds_max_y && bounds_min_y <= end_y
+                start_y <= text_area.bounds.bottom && text_area.bounds.top <= end_y
             };
 
             let layout_runs = text_area

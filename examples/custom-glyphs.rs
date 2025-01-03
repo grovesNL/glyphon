@@ -1,16 +1,21 @@
+#[cfg(feature = "egui")]
+use egui_wgpu::wgpu as WPGU;
+#[cfg(not(feature = "egui"))]
+use wgpu as WPGU;
+
 use glyphon::{
     Attrs, Buffer, Cache, Color, ContentType, CustomGlyph, Family, FontSystem, Metrics,
     RasterizeCustomGlyphRequest, RasterizedCustomGlyph, Resolution, Shaping, SwashCache, TextArea,
     TextAtlas, TextBounds, TextRenderer, Viewport,
 };
 use std::sync::Arc;
-use wgpu::{
-    CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Instance, InstanceDescriptor,
-    LoadOp, MultisampleState, Operations, PresentMode, RenderPassColorAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat,
-    TextureUsages, TextureViewDescriptor,
-};
 use winit::{dpi::LogicalSize, event::WindowEvent, event_loop::EventLoop, window::Window};
+use WPGU::{
+    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Instance,
+    InstanceDescriptor, LoadOp, MultisampleState, Operations, PresentMode, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, StoreOp, Surface,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
+};
 
 // Example SVG icons are from https://publicdomainvectors.org/
 static LION_SVG: &[u8] = include_bytes!("./lion.svg");
@@ -24,9 +29,9 @@ fn main() {
 }
 
 struct WindowState {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    surface: wgpu::Surface<'static>,
+    device: Device,
+    queue: Queue,
+    surface: Surface<'static>,
     surface_config: SurfaceConfiguration,
     font_system: FontSystem,
     swash_cache: SwashCache,
@@ -117,11 +122,8 @@ impl WindowState {
                 let scale_x = input.width as f32 / svg_size.width();
                 let scale_y = input.height as f32 / svg_size.height();
 
-                let Some(mut pixmap) =
-                    resvg::tiny_skia::Pixmap::new(input.width as u32, input.height as u32)
-                else {
-                    return None;
-                };
+                let mut pixmap =
+                    resvg::tiny_skia::Pixmap::new(input.width as u32, input.height as u32)?;
 
                 let mut transform = resvg::usvg::Transform::from_scale(scale_x, scale_y);
 
@@ -211,12 +213,12 @@ impl winit::application::ApplicationHandler for Application {
             WindowEvent::Resized(size) => {
                 surface_config.width = size.width;
                 surface_config.height = size.height;
-                surface.configure(&device, &surface_config);
+                surface.configure(device, surface_config);
                 window.request_redraw();
             }
             WindowEvent::RedrawRequested => {
                 viewport.update(
-                    &queue,
+                    queue,
                     Resolution {
                         width: surface_config.width,
                         height: surface_config.height,
@@ -231,7 +233,7 @@ impl winit::application::ApplicationHandler for Application {
                         atlas,
                         viewport,
                         [TextArea {
-                            buffer: &text_buffer,
+                            buffer: text_buffer,
                             left: 10.0,
                             top: 10.0,
                             scale: 1.0,
@@ -301,13 +303,13 @@ impl winit::application::ApplicationHandler for Application {
                             view: &view,
                             resolve_target: None,
                             ops: Operations {
-                                load: LoadOp::Clear(wgpu::Color {
+                                load: LoadOp::Clear(WPGU::Color {
                                     r: 0.02,
                                     g: 0.02,
                                     b: 0.02,
                                     a: 1.0,
                                 }),
-                                store: wgpu::StoreOp::Store,
+                                store: StoreOp::Store,
                             },
                         })],
                         depth_stencil_attachment: None,
@@ -315,7 +317,7 @@ impl winit::application::ApplicationHandler for Application {
                         occlusion_query_set: None,
                     });
 
-                    text_renderer.render(&atlas, &viewport, &mut pass).unwrap();
+                    text_renderer.render(atlas, viewport, &mut pass).unwrap();
                 }
 
                 queue.submit(Some(encoder.finish()));

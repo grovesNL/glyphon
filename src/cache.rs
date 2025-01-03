@@ -1,19 +1,28 @@
 use crate::{GlyphToRender, Params};
+
+#[cfg(feature = "egui")]
+use egui_wgpu::wgpu as WPGU;
+#[cfg(not(feature = "egui"))]
+use wgpu as WPGU;
+
+use WPGU::{
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingResource, BindingType, BlendState, Buffer, BufferAddress,
+    BufferBindingType, ColorTargetState, ColorWrites, DepthStencilState, Device, FilterMode,
+    FragmentState, MultisampleState, PipelineCompilationOptions, PipelineLayout,
+    PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline,
+    RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor, ShaderModule,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureFormat, TextureSampleType,
+    TextureView, TextureViewDimension, VertexAttribute, VertexBufferLayout, VertexFormat,
+    VertexState, VertexStepMode,
+};
+
 use std::{
     borrow::Cow,
     mem,
     num::NonZeroU64,
     ops::Deref,
     sync::{Arc, RwLock},
-};
-use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry,
-    BindingResource, BindingType, BlendState, Buffer, BufferBindingType, ColorTargetState,
-    ColorWrites, DepthStencilState, Device, FilterMode, FragmentState, MultisampleState,
-    PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
-    PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, Sampler, SamplerBindingType,
-    SamplerDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStages,
-    TextureFormat, TextureSampleType, TextureView, TextureViewDimension, VertexFormat, VertexState,
 };
 
 /// A cache to share common resources (e.g., pipelines, layouts, shaders) between multiple text
@@ -25,7 +34,7 @@ pub struct Cache(Arc<Inner>);
 struct Inner {
     sampler: Sampler,
     shader: ShaderModule,
-    vertex_buffers: [wgpu::VertexBufferLayout<'static>; 1],
+    vertex_buffers: [VertexBufferLayout<'static>; 1],
     atlas_layout: BindGroupLayout,
     uniforms_layout: BindGroupLayout,
     pipeline_layout: PipelineLayout,
@@ -57,36 +66,36 @@ impl Cache {
             source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
         });
 
-        let vertex_buffer_layout = wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<GlyphToRender>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
+        let vertex_buffer_layout = VertexBufferLayout {
+            array_stride: mem::size_of::<GlyphToRender>() as BufferAddress,
+            step_mode: VertexStepMode::Instance,
             attributes: &[
-                wgpu::VertexAttribute {
+                VertexAttribute {
                     format: VertexFormat::Sint32x2,
                     offset: 0,
                     shader_location: 0,
                 },
-                wgpu::VertexAttribute {
+                VertexAttribute {
                     format: VertexFormat::Uint32,
                     offset: mem::size_of::<u32>() as u64 * 2,
                     shader_location: 1,
                 },
-                wgpu::VertexAttribute {
+                VertexAttribute {
                     format: VertexFormat::Uint32,
                     offset: mem::size_of::<u32>() as u64 * 3,
                     shader_location: 2,
                 },
-                wgpu::VertexAttribute {
+                VertexAttribute {
                     format: VertexFormat::Uint32,
                     offset: mem::size_of::<u32>() as u64 * 4,
                     shader_location: 3,
                 },
-                wgpu::VertexAttribute {
+                VertexAttribute {
                     format: VertexFormat::Uint32,
                     offset: mem::size_of::<u32>() as u64 * 5,
                     shader_location: 4,
                 },
-                wgpu::VertexAttribute {
+                VertexAttribute {
                     format: VertexFormat::Float32,
                     offset: mem::size_of::<u32>() as u64 * 6,
                     shader_location: 5,
@@ -94,7 +103,7 @@ impl Cache {
             ],
         };
 
-        let atlas_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        let atlas_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
@@ -126,7 +135,7 @@ impl Cache {
             label: Some("glyphon atlas bind group layout"),
         });
 
-        let uniforms_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        let uniforms_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             entries: &[BindGroupLayoutEntry {
                 binding: 0,
                 visibility: ShaderStages::VERTEX,
@@ -211,44 +220,96 @@ impl Cache {
 
         let mut cache = cache.write().expect("Write pipeline cache");
 
-        cache
-            .iter()
-            .find(|(fmt, ms, ds, _)| fmt == &format && ms == &multisample && ds == &depth_stencil)
-            .map(|(_, _, _, p)| Arc::clone(p))
-            .unwrap_or_else(|| {
-                let pipeline = Arc::new(device.create_render_pipeline(&RenderPipelineDescriptor {
-                    label: Some("glyphon pipeline"),
-                    layout: Some(pipeline_layout),
-                    vertex: VertexState {
-                        module: shader,
-                        entry_point: Some("vs_main"),
-                        buffers: vertex_buffers,
-                        compilation_options: PipelineCompilationOptions::default(),
-                    },
-                    fragment: Some(FragmentState {
-                        module: shader,
-                        entry_point: Some("fs_main"),
-                        targets: &[Some(ColorTargetState {
-                            format,
-                            blend: Some(BlendState::ALPHA_BLENDING),
-                            write_mask: ColorWrites::default(),
-                        })],
-                        compilation_options: PipelineCompilationOptions::default(),
-                    }),
-                    primitive: PrimitiveState {
-                        topology: PrimitiveTopology::TriangleStrip,
-                        ..Default::default()
-                    },
-                    depth_stencil: depth_stencil.clone(),
-                    multisample,
-                    multiview: None,
-                    cache: None,
-                }));
+        #[cfg(not(feature = "egui"))]
+        {
+            cache
+                .iter()
+                .find(|(fmt, ms, ds, _)| {
+                    fmt == &format && ms == &multisample && ds == &depth_stencil
+                })
+                .map(|(_, _, _, p)| Arc::clone(p))
+                .unwrap_or_else(|| {
+                    let pipeline =
+                        Arc::new(device.create_render_pipeline(&RenderPipelineDescriptor {
+                            label: Some("glyphon pipeline"),
+                            layout: Some(pipeline_layout),
+                            vertex: VertexState {
+                                module: shader,
+                                entry_point: Some("vs_main"),
+                                buffers: vertex_buffers,
+                                compilation_options: PipelineCompilationOptions::default(),
+                            },
+                            fragment: Some(FragmentState {
+                                module: shader,
+                                entry_point: Some("fs_main"),
+                                targets: &[Some(ColorTargetState {
+                                    format,
+                                    blend: Some(BlendState::ALPHA_BLENDING),
+                                    write_mask: ColorWrites::default(),
+                                })],
+                                compilation_options: PipelineCompilationOptions::default(),
+                            }),
+                            primitive: PrimitiveState {
+                                topology: PrimitiveTopology::TriangleStrip,
+                                ..Default::default()
+                            },
+                            depth_stencil: depth_stencil.clone(),
+                            multisample,
+                            multiview: None,
+                            cache: None,
+                        }));
 
-                cache.push((format, multisample, depth_stencil, pipeline.clone()));
+                    cache.push((format, multisample, depth_stencil, pipeline.clone()));
 
-                pipeline
-            })
-            .clone()
+                    pipeline
+                })
+                .clone()
+        }
+
+        #[cfg(feature = "egui")]
+        {
+            cache
+                .iter()
+                .find(|(fmt, ms, ds, _)| {
+                    fmt == &format && ms == &multisample && ds == &depth_stencil
+                })
+                .map(|(_, _, _, p)| Arc::clone(p))
+                .unwrap_or_else(|| {
+                    let pipeline =
+                        Arc::new(device.create_render_pipeline(&RenderPipelineDescriptor {
+                            label: Some("glyphon pipeline"),
+                            layout: Some(pipeline_layout),
+                            vertex: VertexState {
+                                module: shader,
+                                entry_point: "vs_main",
+                                buffers: vertex_buffers,
+                                compilation_options: PipelineCompilationOptions::default(),
+                            },
+                            fragment: Some(FragmentState {
+                                module: shader,
+                                entry_point: "fs_main",
+                                targets: &[Some(ColorTargetState {
+                                    format,
+                                    blend: Some(BlendState::ALPHA_BLENDING),
+                                    write_mask: ColorWrites::default(),
+                                })],
+                                compilation_options: PipelineCompilationOptions::default(),
+                            }),
+                            primitive: PrimitiveState {
+                                topology: PrimitiveTopology::TriangleStrip,
+                                ..Default::default()
+                            },
+                            depth_stencil: depth_stencil.clone(),
+                            multisample,
+                            multiview: None,
+                            cache: None,
+                        }));
+
+                    cache.push((format, multisample, depth_stencil, pipeline.clone()));
+
+                    pipeline
+                })
+                .clone()
+        }
     }
 }

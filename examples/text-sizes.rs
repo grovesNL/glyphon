@@ -62,7 +62,7 @@ impl WindowState {
         let scale_factor = window.scale_factor() as f32;
 
         // Set up surface
-        let instance = Instance::new(InstanceDescriptor::default());
+        let instance = Instance::new(&InstanceDescriptor::default());
         let adapter = instance
             .request_adapter(&RequestAdapterOptions::default())
             .await

@@ -6,8 +6,8 @@ use crate::{
 use cosmic_text::{Color, SubpixelBin};
 use std::{slice, sync::Arc};
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
-    ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,
+    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, TexelCopyTextureInfo,
+    TexelCopyBufferLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,
     COPY_BUFFER_ALIGNMENT,
 };
 
@@ -468,7 +468,7 @@ where
             let atlas_min = allocation.rectangle.min;
 
             queue.write_texture(
-                ImageCopyTexture {
+                TexelCopyTextureInfo {
                     texture: &inner.texture,
                     mip_level: 0,
                     origin: Origin3d {
@@ -479,7 +479,7 @@ where
                     aspect: TextureAspect::All,
                 },
                 &image.data,
-                ImageDataLayout {
+                TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(image.width as u32 * inner.num_channels() as u32),
                     rows_per_image: None,

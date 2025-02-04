@@ -4,7 +4,7 @@ use std::{
     mem,
     num::NonZeroU64,
     ops::Deref,
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex},
 };
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry,
@@ -29,7 +29,7 @@ struct Inner {
     atlas_layout: BindGroupLayout,
     uniforms_layout: BindGroupLayout,
     pipeline_layout: PipelineLayout,
-    cache: RwLock<
+    cache: Mutex<
         Vec<(
             TextureFormat,
             MultisampleState,
@@ -153,7 +153,7 @@ impl Cache {
             uniforms_layout,
             atlas_layout,
             pipeline_layout,
-            cache: RwLock::new(Vec::new()),
+            cache: Mutex::new(Vec::new()),
         }))
     }
 
@@ -209,7 +209,7 @@ impl Cache {
             ..
         } = self.0.deref();
 
-        let mut cache = cache.write().expect("Write pipeline cache");
+        let mut cache = cache.lock().expect("Write pipeline cache");
 
         cache
             .iter()

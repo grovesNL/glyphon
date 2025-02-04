@@ -34,7 +34,7 @@ struct Inner {
             TextureFormat,
             MultisampleState,
             Option<DepthStencilState>,
-            Arc<RenderPipeline>,
+            RenderPipeline,
         )>,
     >,
 }
@@ -200,7 +200,7 @@ impl Cache {
         format: TextureFormat,
         multisample: MultisampleState,
         depth_stencil: Option<DepthStencilState>,
-    ) -> Arc<RenderPipeline> {
+    ) -> RenderPipeline {
         let Inner {
             cache,
             pipeline_layout,
@@ -214,9 +214,9 @@ impl Cache {
         cache
             .iter()
             .find(|(fmt, ms, ds, _)| fmt == &format && ms == &multisample && ds == &depth_stencil)
-            .map(|(_, _, _, p)| Arc::clone(p))
+            .map(|(_, _, _, p)| p.clone())
             .unwrap_or_else(|| {
-                let pipeline = Arc::new(device.create_render_pipeline(&RenderPipelineDescriptor {
+                let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
                     label: Some("glyphon pipeline"),
                     layout: Some(pipeline_layout),
                     vertex: VertexState {
@@ -243,7 +243,7 @@ impl Cache {
                     multisample,
                     multiview: None,
                     cache: None,
-                }));
+                });
 
                 cache.push((format, multisample, depth_stencil, pipeline.clone()));
 

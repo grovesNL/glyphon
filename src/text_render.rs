@@ -4,18 +4,18 @@ use crate::{
     RasterizedCustomGlyph, RenderError, SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
 };
 use cosmic_text::{Color, SubpixelBin};
-use std::{slice, sync::Arc};
+use std::slice;
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, TexelCopyTextureInfo,
-    TexelCopyBufferLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,
-    COPY_BUFFER_ALIGNMENT,
+    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, MultisampleState,
+    Origin3d, Queue, RenderPass, RenderPipeline, TexelCopyBufferLayout, TexelCopyTextureInfo,
+    TextureAspect, COPY_BUFFER_ALIGNMENT,
 };
 
 /// A text renderer that uses cached glyphs to render text into an existing render pass.
 pub struct TextRenderer {
     vertex_buffer: Buffer,
     vertex_buffer_size: u64,
-    pipeline: Arc<RenderPipeline>,
+    pipeline: RenderPipeline,
     glyph_vertices: Vec<GlyphToRender>,
 }
 

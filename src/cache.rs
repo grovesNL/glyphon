@@ -4,7 +4,7 @@ use std::{
     mem,
     num::NonZeroU64,
     ops::Deref,
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex},
 };
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry,
@@ -29,12 +29,12 @@ struct Inner {
     atlas_layout: BindGroupLayout,
     uniforms_layout: BindGroupLayout,
     pipeline_layout: PipelineLayout,
-    cache: RwLock<
+    cache: Mutex<
         Vec<(
             TextureFormat,
             MultisampleState,
             Option<DepthStencilState>,
-            Arc<RenderPipeline>,
+            RenderPipeline,
         )>,
     >,
 }
@@ -153,7 +153,7 @@ impl Cache {
             uniforms_layout,
             atlas_layout,
             pipeline_layout,
-            cache: RwLock::new(Vec::new()),
+            cache: Mutex::new(Vec::new()),
         }))
     }
 
@@ -200,7 +200,7 @@ impl Cache {
         format: TextureFormat,
         multisample: MultisampleState,
         depth_stencil: Option<DepthStencilState>,
-    ) -> Arc<RenderPipeline> {
+    ) -> RenderPipeline {
         let Inner {
             cache,
             pipeline_layout,
@@ -209,14 +209,14 @@ impl Cache {
             ..
         } = self.0.deref();
 
-        let mut cache = cache.write().expect("Write pipeline cache");
+        let mut cache = cache.lock().expect("Write pipeline cache");
 
         cache
             .iter()
             .find(|(fmt, ms, ds, _)| fmt == &format && ms == &multisample && ds == &depth_stencil)
-            .map(|(_, _, _, p)| Arc::clone(p))
+            .map(|(_, _, _, p)| p.clone())
             .unwrap_or_else(|| {
-                let pipeline = Arc::new(device.create_render_pipeline(&RenderPipelineDescriptor {
+                let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
                     label: Some("glyphon pipeline"),
                     layout: Some(pipeline_layout),
                     vertex: VertexState {
@@ -243,7 +243,7 @@ impl Cache {
                     multisample,
                     multiview: None,
                     cache: None,
-                }));
+                });
 
                 cache.push((format, multisample, depth_stencil, pipeline.clone()));
 

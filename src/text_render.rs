@@ -225,12 +225,11 @@ impl TextRenderer {
             }
 
             let is_run_visible = |run: &cosmic_text::LayoutRun| {
-                let start_y = (text_area.top + (run.line_top * text_area.scale)) as i32;
-                let end_y = (text_area.top
-                    + (run.line_top * text_area.scale)
-                    + (run.line_height * text_area.scale)) as i32;
+                let start_y_physical = (text_area.top + (run.line_top * text_area.scale)) as i32;
+                let end_y_physical = start_y_physical + (run.line_height * text_area.scale) as i32;
 
-                start_y <= text_area.bounds.bottom && text_area.bounds.top <= end_y
+                start_y_physical <= text_area.bounds.bottom
+                    && text_area.bounds.top <= end_y_physical
             };
 
             let layout_runs = text_area
@@ -244,10 +243,17 @@ impl TextRenderer {
                     let physical_glyph =
                         glyph.physical((text_area.left, text_area.top), text_area.scale);
 
-                    let color = match glyph.color_opt {
+                    let mut color = match glyph.color_opt {
                         Some(some) => some,
                         None => text_area.default_color,
                     };
+
+                    color = Color::rgba(
+                        color.r(),
+                        color.g(),
+                        color.b(),
+                        (color.a() as f32 * text_area.opacity) as u8,
+                    );
 
                     if let Some(glyph_to_render) = prepare_glyph(
                         physical_glyph.x,

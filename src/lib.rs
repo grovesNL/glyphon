@@ -114,6 +114,8 @@ pub struct TextArea<'a> {
     pub top: f32,
     /// The scaling to apply to the buffer.
     pub scale: f32,
+    /// The opacity to apply to the buffer.
+    pub opacity: f32,
     /// The visible bounds of the text area. This is used to clip the text and doesn't have to
     /// match the `left` and `top` values.
     pub bounds: TextBounds,

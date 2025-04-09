@@ -94,7 +94,7 @@ impl WindowState {
         text_buffer.set_text(
             &mut font_system,
             "SVG icons!     --->\n\nThe icons below should be partially clipped.",
-            Attrs::new().family(Family::SansSerif),
+            &Attrs::new().family(Family::SansSerif),
             Shaping::Advanced,
         );
         text_buffer.shape_until_scroll(&mut font_system, false);

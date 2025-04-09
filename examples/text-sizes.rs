@@ -120,7 +120,7 @@ impl WindowState {
                 text_buffer.set_text(
                     &mut font_system,
                     &format!("size {s}: {TEXT}"),
-                    attrs,
+                    &attrs,
                     shaping,
                 );
 

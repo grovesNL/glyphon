@@ -68,7 +68,7 @@ impl WindowState {
             .await
             .unwrap();
         let (device, queue) = adapter
-            .request_device(&DeviceDescriptor::default(), None)
+            .request_device(&DeviceDescriptor::default())
             .await
             .unwrap();
 

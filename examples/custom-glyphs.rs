@@ -299,6 +299,7 @@ impl winit::application::ApplicationHandler for Application {
                         label: None,
                         color_attachments: &[Some(RenderPassColorAttachment {
                             view: &view,
+                            depth_slice: None,
                             resolve_target: None,
                             ops: Operations {
                                 load: LoadOp::Clear(wgpu::Color {

@@ -11,6 +11,7 @@ impl State {
     pub fn new() -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
+            memory_budget_thresholds: Default::default(),
             flags: wgpu::InstanceFlags::empty(),
             backend_options: BackendOptions {
                 gl: wgpu::GlBackendOptions {

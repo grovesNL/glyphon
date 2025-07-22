@@ -17,7 +17,7 @@ rustc-hash = "2.1.1"
 [dev-dependencies]
 winit = "0.30.3"
 wgpu = "26.0.1"
-resvg = { version = "0.44", default-features = false }
+resvg = { version = "0.45", default-features = false }
 pollster = "0.4.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 

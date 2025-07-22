@@ -136,7 +136,7 @@ impl WindowState {
             surface,
             surface_config,
             physical_size: physical_size.cast(),
-            scale_factor: scale_factor as f32,
+            scale_factor,
             font_system,
             swash_cache,
             viewport,
@@ -199,7 +199,7 @@ impl winit::application::ApplicationHandler for Application {
             WindowEvent::Resized(size) => {
                 surface_config.width = size.width;
                 surface_config.height = size.height;
-                surface.configure(&device, &surface_config);
+                surface.configure(device, surface_config);
                 window.request_redraw();
 
                 *scale_factor = window.scale_factor() as f32;
@@ -214,7 +214,7 @@ impl winit::application::ApplicationHandler for Application {
             }
             WindowEvent::RedrawRequested => {
                 viewport.update(
-                    &queue,
+                    queue,
                     Resolution {
                         width: surface_config.width,
                         height: surface_config.height,
@@ -290,7 +290,7 @@ impl winit::application::ApplicationHandler for Application {
                         occlusion_query_set: None,
                     });
 
-                    text_renderer.render(&atlas, &viewport, &mut pass).unwrap();
+                    text_renderer.render(atlas, viewport, &mut pass).unwrap();
                 }
 
                 queue.submit(Some(encoder.finish()));

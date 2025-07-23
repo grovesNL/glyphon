@@ -1,6 +1,6 @@
 use crate::{
     text_render::GlyphonCacheKey, Cache, ContentType, FontSystem, GlyphDetails, GpuCacheStatus,
-    RasterizeCustomGlyphRequest, RasterizedCustomGlyph, SwashCache,
+    RasterizeCustomGlyphRequest, RasterizedCustomGlyph, State, SwashCache,
 };
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
@@ -30,14 +30,14 @@ pub(crate) struct InnerAtlas {
 impl InnerAtlas {
     const INITIAL_SIZE: u32 = 256;
 
-    fn new(device: &Device, _queue: &Queue, kind: Kind) -> Self {
-        let max_texture_dimension_2d = device.limits().max_texture_dimension_2d;
+    fn new(state: &State, kind: Kind) -> Self {
+        let max_texture_dimension_2d = state.device.limits().max_texture_dimension_2d;
         let size = Self::INITIAL_SIZE.min(max_texture_dimension_2d);
 
         let packer = BucketedAtlasAllocator::new(size2(size as i32, size as i32));
 
         // Create a texture to use for our atlas
-        let texture = device.create_texture(&TextureDescriptor {
+        let texture = state.device.create_texture(&TextureDescriptor {
             label: Some("glyphon atlas"),
             size: Extent3d {
                 width: size,
@@ -110,8 +110,7 @@ impl InnerAtlas {
 
     pub(crate) fn grow(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        state: &State,
         font_system: &mut FontSystem,
         cache: &mut SwashCache,
         scale_factor: f32,
@@ -131,7 +130,7 @@ impl InnerAtlas {
         self.packer.grow(size2(new_size as i32, new_size as i32));
 
         // Create a texture to use for our atlas
-        self.texture = device.create_texture(&TextureDescriptor {
+        self.texture = state.device.create_texture(&TextureDescriptor {
             label: Some("glyphon atlas"),
             size: Extent3d {
                 width: new_size,
@@ -186,7 +185,7 @@ impl InnerAtlas {
                 }
             };
 
-            queue.write_texture(
+            state.queue.write_texture(
                 TexelCopyTextureInfo {
                     texture: &self.texture,
                     mip_level: 0,
@@ -304,9 +303,9 @@ impl TextAtlas {
         format: TextureFormat,
         color_mode: ColorMode,
     ) -> Self {
+        let state = State { device, queue };
         let color_atlas = InnerAtlas::new(
-            device,
-            queue,
+            &state,
             Kind::Color {
                 srgb: match color_mode {
                     ColorMode::Accurate => true,
@@ -314,7 +313,7 @@ impl TextAtlas {
                 },
             },
         );
-        let mask_atlas = InnerAtlas::new(device, queue, Kind::Mask);
+        let mask_atlas = InnerAtlas::new(&state, Kind::Mask);
 
         let bind_group = cache.create_atlas_bind_group(
             device,
@@ -339,8 +338,7 @@ impl TextAtlas {
 
     pub(crate) fn grow(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        state: &State,
         font_system: &mut FontSystem,
         cache: &mut SwashCache,
         content_type: ContentType,
@@ -349,16 +347,14 @@ impl TextAtlas {
     ) -> bool {
         let did_grow = match content_type {
             ContentType::Mask => self.mask_atlas.grow(
-                device,
-                queue,
+                state,
                 font_system,
                 cache,
                 scale_factor,
                 rasterize_custom_glyph,
             ),
             ContentType::Color => self.color_atlas.grow(
-                device,
-                queue,
+                state,
                 font_system,
                 cache,
                 scale_factor,
@@ -367,7 +363,7 @@ impl TextAtlas {
         };
 
         if did_grow {
-            self.rebind(device);
+            self.rebind(state.device);
         }
 
         did_grow

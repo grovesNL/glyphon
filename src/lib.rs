@@ -31,6 +31,7 @@ pub use cosmic_text::{
 };
 
 use etagere::AllocId;
+use wgpu::{Device, Queue};
 
 pub(crate) enum GpuCacheStatus {
     InAtlas {
@@ -121,4 +122,9 @@ pub struct TextArea<'a> {
     pub default_color: Color,
     /// Additional custom glyphs to render.
     pub custom_glyphs: &'a [CustomGlyph],
+}
+
+pub(crate) struct State<'a> {
+    pub(crate) device: &'a Device,
+    pub(crate) queue: &'a Queue,
 }

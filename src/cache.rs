@@ -21,6 +21,15 @@ use wgpu::{
 #[derive(Debug, Clone)]
 pub struct Cache(Arc<Inner>);
 
+type InnerCache = Mutex<
+    Vec<(
+        TextureFormat,
+        MultisampleState,
+        Option<DepthStencilState>,
+        RenderPipeline,
+    )>,
+>;
+
 #[derive(Debug)]
 struct Inner {
     sampler: Sampler,
@@ -29,14 +38,7 @@ struct Inner {
     atlas_layout: BindGroupLayout,
     uniforms_layout: BindGroupLayout,
     pipeline_layout: PipelineLayout,
-    cache: Mutex<
-        Vec<(
-            TextureFormat,
-            MultisampleState,
-            Option<DepthStencilState>,
-            RenderPipeline,
-        )>,
-    >,
+    cache: InnerCache,
 }
 
 impl Cache {

@@ -1,7 +1,8 @@
 use crate::{
     custom_glyph::CustomGlyphCacheKey, ColorMode, ContentType, FontSystem, GlyphDetails,
     GlyphToRender, GpuCacheStatus, PrepareError, RasterizeCustomGlyphRequest,
-    RasterizedCustomGlyph, RenderError, SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
+    RasterizedCustomGlyph, RenderError, State, SwashCache, SwashContent, TextArea, TextAtlas,
+    Viewport,
 };
 use cosmic_text::{Color, SubpixelBin};
 use std::slice;
@@ -136,13 +137,25 @@ impl TextRenderer {
     ) -> Result<(), PrepareError> {
         self.glyph_vertices.clear();
 
+        let state = State { device, queue };
+        let mut system = GlyphSystem {
+            atlas,
+            cache,
+            font_system,
+        };
         let resolution = viewport.resolution();
 
         for text_area in text_areas {
-            let bounds_min_x = text_area.bounds.left.max(0);
-            let bounds_min_y = text_area.bounds.top.max(0);
-            let bounds_max_x = text_area.bounds.right.min(resolution.width as i32);
-            let bounds_max_y = text_area.bounds.bottom.min(resolution.height as i32);
+            let bounds = GlyphBounds {
+                x: Bounds {
+                    min: text_area.bounds.left.max(0),
+                    max: text_area.bounds.right.min(resolution.width as i32),
+                },
+                y: Bounds {
+                    min: text_area.bounds.top.max(0),
+                    max: text_area.bounds.bottom.min(resolution.width as i32),
+                },
+            };
 
             for glyph in text_area.custom_glyphs.iter() {
                 let x = text_area.left + (glyph.left * text_area.scale);
@@ -174,23 +187,19 @@ impl TextRenderer {
                 let color = glyph.color.unwrap_or(text_area.default_color);
 
                 if let Some(glyph_to_render) = prepare_glyph(
-                    x,
-                    y,
-                    0.0,
-                    color,
-                    glyph.metadata,
-                    cache_key,
-                    atlas,
-                    device,
-                    queue,
-                    cache,
-                    font_system,
-                    text_area.scale,
-                    bounds_min_x,
-                    bounds_min_y,
-                    bounds_max_x,
-                    bounds_max_y,
-                    |_cache, _font_system, rasterize_custom_glyph| -> Option<GetGlyphImageResult> {
+                    &state,
+                    &mut system,
+                    GlyphMetadata {
+                        x,
+                        y,
+                        line_y: 0.0,
+                        scale_factor: text_area.scale,
+                        color,
+                        metadata: glyph.metadata,
+                        cache_key,
+                    },
+                    bounds,
+                    |_system, rasterize_custom_glyph| -> Option<GetGlyphImageResult> {
                         if width == 0 || height == 0 {
                             return None;
                         }
@@ -227,8 +236,9 @@ impl TextRenderer {
             let is_run_visible = |run: &cosmic_text::LayoutRun| {
                 let start_y_physical = (text_area.top + (run.line_top * text_area.scale)) as i32;
                 let end_y_physical = start_y_physical + (run.line_height * text_area.scale) as i32;
-                
-                start_y_physical <= text_area.bounds.bottom && text_area.bounds.top <= end_y_physical
+
+                start_y_physical <= text_area.bounds.bottom
+                    && text_area.bounds.top <= end_y_physical
             };
 
             let layout_runs = text_area
@@ -248,28 +258,22 @@ impl TextRenderer {
                     };
 
                     if let Some(glyph_to_render) = prepare_glyph(
-                        physical_glyph.x,
-                        physical_glyph.y,
-                        run.line_y,
-                        color,
-                        glyph.metadata,
-                        GlyphonCacheKey::Text(physical_glyph.cache_key),
-                        atlas,
-                        device,
-                        queue,
-                        cache,
-                        font_system,
-                        text_area.scale,
-                        bounds_min_x,
-                        bounds_min_y,
-                        bounds_max_x,
-                        bounds_max_y,
-                        |cache,
-                         font_system,
-                         _rasterize_custom_glyph|
-                         -> Option<GetGlyphImageResult> {
-                            let image =
-                                cache.get_image_uncached(font_system, physical_glyph.cache_key)?;
+                        &state,
+                        &mut system,
+                        GlyphMetadata {
+                            x: physical_glyph.x,
+                            y: physical_glyph.y,
+                            line_y: run.line_y,
+                            color,
+                            metadata: glyph.metadata,
+                            cache_key: GlyphonCacheKey::Text(physical_glyph.cache_key),
+                            scale_factor: text_area.scale,
+                        },
+                        bounds,
+                        |system, _rasterize_custom_glyph| -> Option<GetGlyphImageResult> {
+                            let image = system
+                                .cache
+                                .get_image_uncached(system.font_system, physical_glyph.cache_key)?;
 
                             let content_type = match image.content {
                                 SwashContent::Color => ContentType::Color,
@@ -400,125 +404,153 @@ struct GetGlyphImageResult {
     data: Vec<u8>,
 }
 
-fn prepare_glyph<R>(
+struct GlyphMetadata {
     x: i32,
     y: i32,
     line_y: f32,
+    scale_factor: f32,
     color: Color,
     metadata: usize,
     cache_key: GlyphonCacheKey,
-    atlas: &mut TextAtlas,
-    device: &Device,
-    queue: &Queue,
-    cache: &mut SwashCache,
-    font_system: &mut FontSystem,
-    scale_factor: f32,
-    bounds_min_x: i32,
-    bounds_min_y: i32,
-    bounds_max_x: i32,
-    bounds_max_y: i32,
-    get_glyph_image: impl FnOnce(
-        &mut SwashCache,
-        &mut FontSystem,
-        &mut R,
-    ) -> Option<GetGlyphImageResult>,
+}
+
+#[derive(Clone, Copy)]
+struct Bounds {
+    min: i32,
+    max: i32,
+}
+
+#[derive(Clone, Copy)]
+struct GlyphBounds {
+    x: Bounds,
+    y: Bounds,
+}
+
+struct GlyphSystem<'a> {
+    atlas: &'a mut TextAtlas,
+    cache: &'a mut SwashCache,
+    font_system: &'a mut FontSystem,
+}
+
+fn prepare_glyph<R>(
+    state: &State,
+    system: &mut GlyphSystem,
+    metadata: GlyphMetadata,
+    bounds: GlyphBounds,
+    get_glyph_image: impl FnOnce(&mut GlyphSystem, &mut R) -> Option<GetGlyphImageResult>,
     mut metadata_to_depth: impl FnMut(usize) -> f32,
     mut rasterize_custom_glyph: R,
 ) -> Result<Option<GlyphToRender>, PrepareError>
 where
     R: FnMut(RasterizeCustomGlyphRequest) -> Option<RasterizedCustomGlyph>,
 {
-    let details = if let Some(details) = atlas.mask_atlas.glyph_cache.get(&cache_key) {
-        atlas.mask_atlas.glyphs_in_use.insert(cache_key);
-        details
-    } else if let Some(details) = atlas.color_atlas.glyph_cache.get(&cache_key) {
-        atlas.color_atlas.glyphs_in_use.insert(cache_key);
-        details
-    } else {
-        let Some(image) = (get_glyph_image)(cache, font_system, &mut rasterize_custom_glyph) else {
-            return Ok(None);
-        };
-
-        let should_rasterize = image.width > 0 && image.height > 0;
-
-        let (gpu_cache, atlas_id, inner) = if should_rasterize {
-            let mut inner = atlas.inner_for_content_mut(image.content_type);
-
-            // Find a position in the packer
-            let allocation = loop {
-                match inner.try_allocate(image.width as usize, image.height as usize) {
-                    Some(a) => break a,
-                    None => {
-                        if !atlas.grow(
-                            device,
-                            queue,
-                            font_system,
-                            cache,
-                            image.content_type,
-                            scale_factor,
-                            &mut rasterize_custom_glyph,
-                        ) {
-                            return Err(PrepareError::AtlasFull);
-                        }
-
-                        inner = atlas.inner_for_content_mut(image.content_type);
-                    }
-                }
-            };
-            let atlas_min = allocation.rectangle.min;
-
-            queue.write_texture(
-                TexelCopyTextureInfo {
-                    texture: &inner.texture,
-                    mip_level: 0,
-                    origin: Origin3d {
-                        x: atlas_min.x as u32,
-                        y: atlas_min.y as u32,
-                        z: 0,
-                    },
-                    aspect: TextureAspect::All,
-                },
-                &image.data,
-                TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(image.width as u32 * inner.num_channels() as u32),
-                    rows_per_image: None,
-                },
-                Extent3d {
-                    width: image.width as u32,
-                    height: image.height as u32,
-                    depth_or_array_layers: 1,
-                },
-            );
-
-            (
-                GpuCacheStatus::InAtlas {
-                    x: atlas_min.x as u16,
-                    y: atlas_min.y as u16,
-                    content_type: image.content_type,
-                },
-                Some(allocation.id),
-                inner,
-            )
+    let details =
+        if let Some(details) = system.atlas.mask_atlas.glyph_cache.get(&metadata.cache_key) {
+            system
+                .atlas
+                .mask_atlas
+                .glyphs_in_use
+                .insert(metadata.cache_key);
+            details
+        } else if let Some(details) = system
+            .atlas
+            .color_atlas
+            .glyph_cache
+            .get(&metadata.cache_key)
+        {
+            system
+                .atlas
+                .color_atlas
+                .glyphs_in_use
+                .insert(metadata.cache_key);
+            details
         } else {
-            let inner = &mut atlas.color_atlas;
-            (GpuCacheStatus::SkipRasterization, None, inner)
+            let Some(image) = (get_glyph_image)(system, &mut rasterize_custom_glyph) else {
+                return Ok(None);
+            };
+
+            let should_rasterize = image.width > 0 && image.height > 0;
+
+            let (gpu_cache, atlas_id, inner) = if should_rasterize {
+                let mut inner = system.atlas.inner_for_content_mut(image.content_type);
+
+                // Find a position in the packer
+                let allocation = loop {
+                    match inner.try_allocate(image.width as usize, image.height as usize) {
+                        Some(a) => break a,
+                        None => {
+                            if !system.atlas.grow(
+                                state,
+                                system.font_system,
+                                system.cache,
+                                image.content_type,
+                                metadata.scale_factor,
+                                &mut rasterize_custom_glyph,
+                            ) {
+                                return Err(PrepareError::AtlasFull);
+                            }
+
+                            inner = system.atlas.inner_for_content_mut(image.content_type);
+                        }
+                    }
+                };
+                let atlas_min = allocation.rectangle.min;
+
+                state.queue.write_texture(
+                    TexelCopyTextureInfo {
+                        texture: &inner.texture,
+                        mip_level: 0,
+                        origin: Origin3d {
+                            x: atlas_min.x as u32,
+                            y: atlas_min.y as u32,
+                            z: 0,
+                        },
+                        aspect: TextureAspect::All,
+                    },
+                    &image.data,
+                    TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(image.width as u32 * inner.num_channels() as u32),
+                        rows_per_image: None,
+                    },
+                    Extent3d {
+                        width: image.width as u32,
+                        height: image.height as u32,
+                        depth_or_array_layers: 1,
+                    },
+                );
+
+                (
+                    GpuCacheStatus::InAtlas {
+                        x: atlas_min.x as u16,
+                        y: atlas_min.y as u16,
+                        content_type: image.content_type,
+                    },
+                    Some(allocation.id),
+                    inner,
+                )
+            } else {
+                let inner = &mut system.atlas.color_atlas;
+                (GpuCacheStatus::SkipRasterization, None, inner)
+            };
+
+            inner.glyphs_in_use.insert(metadata.cache_key);
+            // Insert the glyph into the cache and return the details reference
+            inner
+                .glyph_cache
+                .get_or_insert(metadata.cache_key, || GlyphDetails {
+                    width: image.width,
+                    height: image.height,
+                    gpu_cache,
+                    atlas_id,
+                    top: image.top,
+                    left: image.left,
+                })
         };
 
-        inner.glyphs_in_use.insert(cache_key);
-        // Insert the glyph into the cache and return the details reference
-        inner.glyph_cache.get_or_insert(cache_key, || GlyphDetails {
-            width: image.width,
-            height: image.height,
-            gpu_cache,
-            atlas_id,
-            top: image.top,
-            left: image.left,
-        })
-    };
-
-    let mut x = x + details.left as i32;
-    let mut y = (line_y * scale_factor).round() as i32 + y - details.top as i32;
+    let mut x = metadata.x + details.left as i32;
+    let mut y =
+        (metadata.line_y * metadata.scale_factor).round() as i32 + metadata.y - details.top as i32;
 
     let (mut atlas_x, mut atlas_y, content_type) = match details.gpu_cache {
         GpuCacheStatus::InAtlas { x, y, content_type } => (x, y, content_type),
@@ -530,54 +562,54 @@ where
 
     // Starts beyond right edge or ends beyond left edge
     let max_x = x + width;
-    if x > bounds_max_x || max_x < bounds_min_x {
+    if x > bounds.x.max || max_x < bounds.x.min {
         return Ok(None);
     }
 
     // Starts beyond bottom edge or ends beyond top edge
     let max_y = y + height;
-    if y > bounds_max_y || max_y < bounds_min_y {
+    if y > bounds.y.max || max_y < bounds.y.min {
         return Ok(None);
     }
 
     // Clip left ege
-    if x < bounds_min_x {
-        let right_shift = bounds_min_x - x;
+    if x < bounds.x.min {
+        let right_shift = bounds.x.min - x;
 
-        x = bounds_min_x;
-        width = max_x - bounds_min_x;
+        x = bounds.x.min;
+        width = max_x - bounds.x.min;
         atlas_x += right_shift as u16;
     }
 
     // Clip right edge
-    if x + width > bounds_max_x {
-        width = bounds_max_x - x;
+    if x + width > bounds.x.max {
+        width = bounds.x.max - x;
     }
 
     // Clip top edge
-    if y < bounds_min_y {
-        let bottom_shift = bounds_min_y - y;
+    if y < bounds.y.min {
+        let bottom_shift = bounds.y.min - y;
 
-        y = bounds_min_y;
-        height = max_y - bounds_min_y;
+        y = bounds.y.min;
+        height = max_y - bounds.y.min;
         atlas_y += bottom_shift as u16;
     }
 
     // Clip bottom edge
-    if y + height > bounds_max_y {
-        height = bounds_max_y - y;
+    if y + height > bounds.y.max {
+        height = bounds.y.max - y;
     }
 
-    let depth = metadata_to_depth(metadata);
+    let depth = metadata_to_depth(metadata.metadata);
 
     Ok(Some(GlyphToRender {
         pos: [x, y],
         dim: [width as u16, height as u16],
         uv: [atlas_x, atlas_y],
-        color: color.0,
+        color: metadata.color.0,
         content_type_with_srgb: [
             content_type as u16,
-            match atlas.color_mode {
+            match system.atlas.color_mode {
                 ColorMode::Accurate => TextColorConversion::ConvertToLinear,
                 ColorMode::Web => TextColorConversion::None,
             } as u16,

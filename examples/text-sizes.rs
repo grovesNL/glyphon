@@ -1,6 +1,5 @@
 use glyphon::{
-    Attrs, Buffer, Cache, Color, ColorMode, Family, FontSystem, Metrics, Resolution, Shaping,
-    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport, Weight,
+    Attrs, Buffer, Cache, Color, ColorMode, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextAreaColorType, TextRenderer, Viewport, Weight
 };
 use std::sync::Arc;
 use wgpu::{
@@ -22,11 +21,15 @@ const SIZES: [f32; 16] = [
     8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 18.0, 20.0, 22.0, 24.0, 28.0, 32.0, 48.0,
 ];
 const LINE_HEIGHT: f32 = 1.15;
-const BG_COLOR: wgpu::Color = wgpu::Color::WHITE;
 const FONT_COLOR: Color = Color::rgb(0, 0, 0);
-//const BG_COLOR: wgpu::Color = wgpu::Color::BLACK;
-//const FONT_COLOR: Color = Color::rgb(255, 255, 255);
-const USE_WEB_COLORS: bool = true;
+const BG_COLOR: wgpu::Color = wgpu::Color {
+    r: 1.0,
+    g: 1.0,
+    b: 1.0,
+    a: 1.0,
+};
+const COLOR_TYPE: TextAreaColorType = TextAreaColorType::DarkOnLight;
+const USE_WEB_COLORS: bool = false;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
@@ -244,6 +247,7 @@ impl winit::application::ApplicationHandler for Application {
                                 bottom: top.floor() as i32 + physical_size.height,
                             },
                             default_color: FONT_COLOR,
+                            color_type: COLOR_TYPE,
                             custom_glyphs: &[],
                         };
 

@@ -1,6 +1,5 @@
 use glyphon::{
-    Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,
-    TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
+    Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAreaColorType, TextAtlas, TextBounds, TextRenderer, Viewport
 };
 use std::sync::Arc;
 use wgpu::{
@@ -186,6 +185,7 @@ impl winit::application::ApplicationHandler for Application {
                                 bottom: 160,
                             },
                             default_color: Color::rgb(255, 255, 255),
+                            color_type: TextAreaColorType::LightOnDark,
                             custom_glyphs: &[],
                         }],
                         swash_cache,

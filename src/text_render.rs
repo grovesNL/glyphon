@@ -1,7 +1,8 @@
 use crate::{
     custom_glyph::CustomGlyphCacheKey, ColorMode, ContentType, FontSystem, GlyphDetails,
     GlyphToRender, GpuCacheStatus, PrepareError, RasterizeCustomGlyphRequest,
-    RasterizedCustomGlyph, RenderError, SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
+    RasterizedCustomGlyph, RenderError, SwashCache, SwashContent, TextArea, TextAtlas,
+    TextAreaColorType, Viewport,
 };
 use cosmic_text::{Color, SubpixelBin};
 use std::slice;
@@ -208,8 +209,16 @@ impl TextRenderer {
 
                         output.validate(&input, None);
 
+                        let content_type = match output.content_type {
+                            ContentType::Color => ContentTypeInner::Color,
+                            ContentType::Mask => match text_area.color_type {
+                                TextAreaColorType::LightOnDark => ContentTypeInner::MaskLightOnDark,
+                                TextAreaColorType::DarkOnLight => ContentTypeInner::MaskDarkOnLight,
+                            },
+                        };
+
                         Some(GetGlyphImageResult {
-                            content_type: output.content_type,
+                            content_type,
                             top: 0,
                             left: 0,
                             width,
@@ -227,8 +236,9 @@ impl TextRenderer {
             let is_run_visible = |run: &cosmic_text::LayoutRun| {
                 let start_y_physical = (text_area.top + (run.line_top * text_area.scale)) as i32;
                 let end_y_physical = start_y_physical + (run.line_height * text_area.scale) as i32;
-                
-                start_y_physical <= text_area.bounds.bottom && text_area.bounds.top <= end_y_physical
+
+                start_y_physical <= text_area.bounds.bottom
+                    && text_area.bounds.top <= end_y_physical
             };
 
             let layout_runs = text_area
@@ -272,12 +282,13 @@ impl TextRenderer {
                                 cache.get_image_uncached(font_system, physical_glyph.cache_key)?;
 
                             let content_type = match image.content {
-                                SwashContent::Color => ContentType::Color,
-                                SwashContent::Mask => ContentType::Mask,
-                                SwashContent::SubpixelMask => {
-                                    // Not implemented yet, but don't panic if this happens.
-                                    ContentType::Mask
-                                }
+                                SwashContent::Color => ContentTypeInner::Color,
+                                SwashContent::Mask | SwashContent::SubpixelMask => match text_area
+                                    .color_type
+                                {
+                                    TextAreaColorType::LightOnDark => ContentTypeInner::MaskLightOnDark,
+                                    TextAreaColorType::DarkOnLight => ContentTypeInner::MaskDarkOnLight,
+                                },
                             };
 
                             Some(GetGlyphImageResult {
@@ -392,7 +403,7 @@ fn zero_depth(_: usize) -> f32 {
 }
 
 struct GetGlyphImageResult {
-    content_type: ContentType,
+    content_type: ContentTypeInner,
     top: i16,
     left: i16,
     width: u16,
@@ -442,7 +453,9 @@ where
         let should_rasterize = image.width > 0 && image.height > 0;
 
         let (gpu_cache, atlas_id, inner) = if should_rasterize {
-            let mut inner = atlas.inner_for_content_mut(image.content_type);
+            let content_type = image.content_type.content_type();
+
+            let mut inner = atlas.inner_for_content_mut(content_type);
 
             // Find a position in the packer
             let allocation = loop {
@@ -454,14 +467,14 @@ where
                             queue,
                             font_system,
                             cache,
-                            image.content_type,
+                            content_type,
                             scale_factor,
                             &mut rasterize_custom_glyph,
                         ) {
                             return Err(PrepareError::AtlasFull);
                         }
 
-                        inner = atlas.inner_for_content_mut(image.content_type);
+                        inner = atlas.inner_for_content_mut(content_type);
                     }
                 }
             };
@@ -584,4 +597,23 @@ where
         ],
         depth,
     }))
+}
+
+/// The type of image data contained in a rasterized glyph
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub(crate) enum ContentTypeInner {
+    /// Each pixel contains 32 bits of rgba data
+    Color,
+    /// Each pixel contains a single 8 bit channel
+    MaskLightOnDark,
+    MaskDarkOnLight,
+}
+
+impl ContentTypeInner {
+    pub fn content_type(&self) -> ContentType {
+        match self {
+            Self::Color => ContentType::Color,
+            _ => ContentType::Mask,
+        }
+    }
 }

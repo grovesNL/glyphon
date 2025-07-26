@@ -1,7 +1,7 @@
 use cosmic_text::{Attrs, Buffer, Color, Family, FontSystem, Metrics, Shaping, SwashCache};
 use criterion::{criterion_group, criterion_main, Criterion};
 use glyphon::{
-    Cache, ColorMode, Resolution, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport, Weight,
+    Cache, ColorMode, Resolution, TextArea, TextAreaColorType, TextAtlas, TextBounds, TextRenderer, Viewport, Weight
 };
 use wgpu::{MultisampleState, TextureFormat};
 
@@ -92,6 +92,7 @@ fn run_bench(ctx: &mut Criterion) {
                             bottom: 1000,
                         },
                         default_color: Color::rgb(0, 0, 0),
+                        color_type: TextAreaColorType::DarkOnLight,
                         custom_glyphs: &[],
                     })
                     .collect();

@@ -32,11 +32,13 @@ pub use cosmic_text::{
 
 use etagere::AllocId;
 
+use crate::text_render::ContentTypeInner;
+
 pub(crate) enum GpuCacheStatus {
     InAtlas {
         x: u16,
         y: u16,
-        content_type: ContentType,
+        content_type: ContentTypeInner,
     },
     SkipRasterization,
 }
@@ -119,6 +121,14 @@ pub struct TextArea<'a> {
     pub bounds: TextBounds,
     /// The default color of the text area.
     pub default_color: Color,
+    pub color_type: TextAreaColorType,
     /// Additional custom glyphs to render.
     pub custom_glyphs: &'a [CustomGlyph],
+}
+
+#[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TextAreaColorType {
+    #[default]
+    DarkOnLight,
+    LightOnDark,
 }

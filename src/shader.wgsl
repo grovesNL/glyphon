@@ -125,14 +125,14 @@ fn fs_main(in_frag: VertexOutput) -> @location(0) vec4<f32> {
         case 1u: {
             let coverage = textureSampleLevel(mask_atlas_texture, atlas_sampler, in_frag.uv, 0.0).x;
 
-            let corrected_coverage = 1.0 - sqrt(1.0 - coverage);
+            let corrected_coverage = 1.0 - pow(1.0 - coverage, 1.0 / 2.2);
 
             return vec4<f32>(in_frag.color.rgb, in_frag.color.a * corrected_coverage);
         }
         case 2u: {
             let coverage = textureSampleLevel(mask_atlas_texture, atlas_sampler, in_frag.uv, 0.0).x;
 
-            let corrected_coverage = 2.0 * coverage - coverage * coverage;
+            let corrected_coverage = pow(coverage, 1.0 / 2.2);
 
             return vec4<f32>(in_frag.color.rgb, in_frag.color.a * corrected_coverage);
         }

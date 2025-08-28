@@ -228,8 +228,7 @@ impl TextRenderer {
                 let start_y_physical = (text_area.top + (run.line_top * text_area.scale)) as i32;
                 let end_y_physical = start_y_physical + (run.line_height * text_area.scale) as i32;
 
-                start_y_physical <= text_area.bounds.bottom
-                    && text_area.bounds.top <= end_y_physical
+                start_y_physical <= text_area.bounds.bottom && text_area.bounds.top <= end_y_physical
             };
 
             let layout_runs = text_area

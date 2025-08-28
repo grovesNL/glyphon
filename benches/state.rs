@@ -11,14 +11,17 @@ impl State {
     pub fn new() -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
+            memory_budget_thresholds: Default::default(),
             flags: wgpu::InstanceFlags::empty(),
             backend_options: BackendOptions {
                 gl: wgpu::GlBackendOptions {
-                    gles_minor_version: wgpu::Gles3MinorVersion::Automatic
+                    gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
+                    ..Default::default()
                 },
                 dx12: Dx12BackendOptions {
                     shader_compiler: wgpu::Dx12Compiler::Fxc
                 },
+                ..Default::default()
             }
         });
 
@@ -33,8 +36,8 @@ impl State {
                 required_features: adapter.features(),
                 required_limits: adapter.limits(),
                 memory_hints: wgpu::MemoryHints::Performance,
+                ..Default::default()
             },
-            None,
         ))
         .unwrap();
 

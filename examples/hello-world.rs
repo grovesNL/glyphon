@@ -49,7 +49,7 @@ impl WindowState {
             .await
             .unwrap();
         let (device, queue) = adapter
-            .request_device(&DeviceDescriptor::default(), None)
+            .request_device(&DeviceDescriptor::default())
             .await
             .unwrap();
 
@@ -87,7 +87,7 @@ impl WindowState {
             Some(physical_width),
             Some(physical_height),
         );
-        text_buffer.set_text(&mut font_system, "Hello world! 👋\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
+        text_buffer.set_text(&mut font_system, "Hello world! 👋\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", &Attrs::new().family(Family::SansSerif), Shaping::Advanced);
         text_buffer.shape_until_scroll(&mut font_system, false);
 
         Self {
@@ -155,12 +155,12 @@ impl winit::application::ApplicationHandler for Application {
             WindowEvent::Resized(size) => {
                 surface_config.width = size.width;
                 surface_config.height = size.height;
-                surface.configure(&device, &surface_config);
+                surface.configure(device, surface_config);
                 window.request_redraw();
             }
             WindowEvent::RedrawRequested => {
                 viewport.update(
-                    &queue,
+                    queue,
                     Resolution {
                         width: surface_config.width,
                         height: surface_config.height,
@@ -201,6 +201,7 @@ impl winit::application::ApplicationHandler for Application {
                         label: None,
                         color_attachments: &[Some(RenderPassColorAttachment {
                             view: &view,
+                            depth_slice: None,
                             resolve_target: None,
                             ops: Operations {
                                 load: LoadOp::Clear(wgpu::Color::BLACK),
@@ -212,7 +213,7 @@ impl winit::application::ApplicationHandler for Application {
                         occlusion_query_set: None,
                     });
 
-                    text_renderer.render(&atlas, &viewport, &mut pass).unwrap();
+                    text_renderer.render(atlas, viewport, &mut pass).unwrap();
                 }
 
                 queue.submit(Some(encoder.finish()));

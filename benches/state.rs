@@ -19,7 +19,8 @@ impl State {
                     ..Default::default()
                 },
                 dx12: Dx12BackendOptions {
-                    shader_compiler: wgpu::Dx12Compiler::Fxc
+                    shader_compiler: wgpu::Dx12Compiler::Fxc,
+                    ..Default::default()
                 },
                 ..Default::default()
             }

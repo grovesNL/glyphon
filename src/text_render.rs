@@ -153,7 +153,7 @@ impl TextRenderer {
                 },
                 y: Bounds {
                     min: text_area.bounds.top.max(0),
-                    max: text_area.bounds.bottom.min(resolution.height as i32), // Fixed: was width
+                    max: text_area.bounds.bottom.min(resolution.height as i32),
                 },
             };
 

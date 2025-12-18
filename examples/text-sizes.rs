@@ -122,6 +122,7 @@ impl WindowState {
                     &format!("size {s}: {TEXT}"),
                     &attrs,
                     shaping,
+                    None,
                 );
 
                 text_buffer.shape_until_scroll(&mut font_system, false);
@@ -288,6 +289,7 @@ impl winit::application::ApplicationHandler for Application {
                         depth_stencil_attachment: None,
                         timestamp_writes: None,
                         occlusion_query_set: None,
+                        multiview_mask: None,
                     });
 
                     text_renderer.render(atlas, viewport, &mut pass).unwrap();

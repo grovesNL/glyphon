@@ -1,3 +1,4 @@
+use std::hint;
 use cosmic_text::{Attrs, Buffer, Color, Family, FontSystem, Metrics, Shaping, SwashCache};
 use criterion::{criterion_group, criterion_main, Criterion};
 use glyphon::{
@@ -70,7 +71,7 @@ fn run_bench(ctx: &mut Criterion) {
             .map(|s| {
                 let mut text_buffer = Buffer::new(&mut font_system, Metrics::relative(1.0, 10.0));
                 text_buffer.set_size(&mut font_system, Some(20.0), None);
-                text_buffer.set_text(&mut font_system, s, &attrs, shaping);
+                text_buffer.set_text(&mut font_system, s, &attrs, shaping, None);
                 text_buffer.shape_until_scroll(&mut font_system, false);
                 text_buffer
             })
@@ -96,7 +97,7 @@ fn run_bench(ctx: &mut Criterion) {
                     })
                     .collect();
 
-                criterion::black_box(
+                hint::black_box(
                     text_renderer
                         .prepare(
                             &state.device,

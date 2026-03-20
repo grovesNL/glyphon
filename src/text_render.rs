@@ -387,7 +387,7 @@ fn create_oversized_buffer(
         mapped_at_creation: true,
     });
     buffer
-        .slice(..)
+        .slice(..contents.len() as u64)
         .get_mapped_range_mut()
         .copy_from_slice(contents);
     buffer.unmap();

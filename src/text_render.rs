@@ -386,7 +386,10 @@ fn create_oversized_buffer(
         usage,
         mapped_at_creation: true,
     });
-    buffer.slice(..).get_mapped_range_mut()[..contents.len()].copy_from_slice(contents);
+    buffer
+        .slice(..)
+        .get_mapped_range_mut()
+        .copy_from_slice(contents);
     buffer.unmap();
     (buffer, size)
 }

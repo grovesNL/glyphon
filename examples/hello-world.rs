@@ -9,7 +9,12 @@ use wgpu::{
     RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat,
     TextureUsages, TextureViewDescriptor,
 };
-use winit::{dpi::LogicalSize, event::WindowEvent, event_loop::EventLoop, window::Window};
+use winit::{
+    dpi::LogicalSize,
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, EventLoop},
+    window::Window,
+};
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
@@ -19,6 +24,7 @@ fn main() {
 }
 
 struct WindowState {
+    instance: wgpu::Instance,
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: wgpu::Surface<'static>,
@@ -38,12 +44,14 @@ struct WindowState {
 }
 
 impl WindowState {
-    async fn new(window: Arc<Window>) -> Self {
+    async fn new(window: Arc<Window>, event_loop: &ActiveEventLoop) -> Self {
         let physical_size = window.inner_size();
         let scale_factor = window.scale_factor();
 
         // Set up surface
-        let instance = Instance::new(&InstanceDescriptor::default());
+        let instance = Instance::new(InstanceDescriptor::new_with_display_handle(Box::new(
+            event_loop.owned_display_handle(),
+        )));
         let adapter = instance
             .request_adapter(&RequestAdapterOptions::default())
             .await
@@ -92,6 +100,7 @@ impl WindowState {
         text_buffer.shape_until_scroll(&mut font_system, false);
 
         Self {
+            instance,
             device,
             queue,
             surface,
@@ -124,7 +133,7 @@ impl winit::application::ApplicationHandler for Application {
             .with_title("glyphon hello world");
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
-        self.window_state = Some(pollster::block_on(WindowState::new(window)));
+        self.window_state = Some(pollster::block_on(WindowState::new(window, event_loop)));
     }
 
     fn window_event(
@@ -149,6 +158,7 @@ impl winit::application::ApplicationHandler for Application {
             atlas,
             text_renderer,
             text_buffer,
+            instance,
             ..
         } = state;
 
@@ -193,7 +203,28 @@ impl winit::application::ApplicationHandler for Application {
                     )
                     .unwrap();
 
-                let frame = surface.get_current_texture().unwrap();
+                let frame = match surface.get_current_texture() {
+                    wgpu::CurrentSurfaceTexture::Success(frame) => frame,
+                    wgpu::CurrentSurfaceTexture::Timeout
+                    | wgpu::CurrentSurfaceTexture::Occluded => {
+                        // Try again later
+                        window.request_redraw();
+                        return;
+                    }
+                    wgpu::CurrentSurfaceTexture::Outdated
+                    | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
+                        surface.configure(device, surface_config);
+                        window.request_redraw();
+                        return;
+                    }
+                    wgpu::CurrentSurfaceTexture::Lost => {
+                        *surface = instance.create_surface(window.clone()).unwrap();
+                        surface.configure(device, surface_config);
+                        window.request_redraw();
+                        return;
+                    }
+                    wgpu::CurrentSurfaceTexture::Validation => panic!("validation error"),
+                };
                 let view = frame.texture.create_view(&TextureViewDescriptor::default());
                 let mut encoder =
                     device.create_command_encoder(&CommandEncoderDescriptor { label: None });

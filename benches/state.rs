@@ -9,7 +9,7 @@ pub struct State {
 
 impl State {
     pub fn new() -> Self {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             memory_budget_thresholds: Default::default(),
             flags: wgpu::InstanceFlags::empty(),
@@ -24,6 +24,7 @@ impl State {
                 },
                 ..Default::default()
             },
+            display: None,
         });
 
         let adapter = block_on(wgpu::util::initialize_adapter_from_env_or_default(

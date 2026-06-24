@@ -95,12 +95,10 @@ impl WindowState {
         let physical_height = (physical_size.height as f64 * scale_factor) as f32;
 
         text_buffer.set_size(
-            &mut font_system,
             Some(physical_width),
             Some(physical_height),
         );
         text_buffer.set_text(
-            &mut font_system,
             "SVG icons!     --->\n\nThe icons below should be partially clipped.",
             &Attrs::new().family(Family::SansSerif),
             Shaping::Advanced,

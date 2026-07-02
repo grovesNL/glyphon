@@ -35,7 +35,7 @@ type InnerCache = Mutex<
 struct Inner {
     sampler: Sampler,
     shader: ShaderModule,
-    vertex_buffers: [wgpu::VertexBufferLayout<'static>; 1],
+    vertex_buffers: [Option<wgpu::VertexBufferLayout<'static>>; 1],
     atlas_layout: BindGroupLayout,
     uniforms_layout: BindGroupLayout,
     pipeline_layout: PipelineLayout,
@@ -151,7 +151,7 @@ impl Cache {
         Self(Arc::new(Inner {
             sampler,
             shader,
-            vertex_buffers: [vertex_buffer_layout],
+            vertex_buffers: [Some(vertex_buffer_layout)],
             uniforms_layout,
             atlas_layout,
             pipeline_layout,

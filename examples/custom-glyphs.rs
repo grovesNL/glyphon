@@ -7,8 +7,8 @@ use std::sync::Arc;
 use wgpu::{
     CommandEncoderDescriptor, CompositeAlphaMode, DeviceDescriptor, Instance, InstanceDescriptor,
     LoadOp, MultisampleState, Operations, PresentMode, RenderPassColorAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat,
-    TextureUsages, TextureViewDescriptor,
+    RenderPassDescriptor, RequestAdapterOptions, SurfaceColorSpace, SurfaceConfiguration,
+    TextureFormat, TextureUsages, TextureViewDescriptor,
 };
 use winit::{
     dpi::LogicalSize,
@@ -78,6 +78,7 @@ impl WindowState {
             alpha_mode: CompositeAlphaMode::Opaque,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
+            color_space: SurfaceColorSpace::Auto,
         };
         surface.configure(&device, &surface_config);
 
@@ -350,7 +351,7 @@ impl winit::application::ApplicationHandler for Application {
                 }
 
                 queue.submit(Some(encoder.finish()));
-                frame.present();
+                queue.present(frame);
 
                 atlas.trim();
             }

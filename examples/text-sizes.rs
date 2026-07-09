@@ -119,10 +119,9 @@ impl WindowState {
                 let mut text_buffer =
                     Buffer::new(&mut font_system, Metrics::relative(s, LINE_HEIGHT));
 
-                text_buffer.set_size(&mut font_system, Some(logical_width - 20.0), None);
+                text_buffer.set_size(Some(logical_width - 20.0), None);
 
                 text_buffer.set_text(
-                    &mut font_system,
                     &format!("size {s}: {TEXT}"),
                     &attrs,
                     shaping,
@@ -215,7 +214,7 @@ impl winit::application::ApplicationHandler for Application {
                 let logical_width = size.width as f32 / *scale_factor;
 
                 for b in buffers.iter_mut() {
-                    b.set_size(font_system, Some(logical_width - 20.0), None);
+                    b.set_size(Some(logical_width - 20.0), None);
                     b.shape_until_scroll(font_system, false);
                 }
             }

@@ -92,12 +92,15 @@ impl WindowState {
         let physical_height = (physical_size.height as f64 * scale_factor) as f32;
 
         text_buffer.set_size(
-            &mut font_system,
             Some(physical_width),
             Some(physical_height),
         );
-        text_buffer.set_text(&mut font_system, "Hello world! 👋\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", &Attrs::new().family(Family::SansSerif), Shaping::Advanced
-            ,None,);
+        text_buffer.set_text(
+            "Hello world! 👋\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z",
+            &Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+            None,
+        );
         text_buffer.shape_until_scroll(&mut font_system, false);
 
         Self {

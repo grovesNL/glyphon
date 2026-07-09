@@ -459,109 +459,109 @@ fn prepare_glyph<R>(
 where
     R: FnMut(RasterizeCustomGlyphRequest) -> Option<RasterizedCustomGlyph>,
 {
-    let details =
-        if let Some(details) = system.atlas.mask_atlas.glyph_cache.get(&metadata.cache_key) {
-            system
-                .atlas
-                .mask_atlas
-                .glyphs_in_use
-                .insert(metadata.cache_key);
-            details
-        } else if let Some(details) = system
-            .atlas
-            .color_atlas
-            .glyph_cache
-            .get(&metadata.cache_key)
-        {
-            system
-                .atlas
-                .color_atlas
-                .glyphs_in_use
-                .insert(metadata.cache_key);
-            details
-        } else {
-            let Some(image) = (get_glyph_image)(system, &mut rasterize_custom_glyph) else {
-                return Ok(None);
-            };
+    let mask_generation = system.atlas.mask_atlas.generation;
+    let color_generation = system.atlas.color_atlas.generation;
 
-            let should_rasterize = image.width > 0 && image.height > 0;
-
-            let (gpu_cache, atlas_id, inner) = if should_rasterize {
-                let mut inner = system.atlas.inner_for_content_mut(image.content_type);
-
-                // Find a position in the packer
-                let allocation = loop {
-                    match inner.try_allocate(image.width as usize, image.height as usize) {
-                        Some(a) => break a,
-                        None => {
-                            if !system.atlas.grow(
-                                state,
-                                system.font_system,
-                                system.cache,
-                                image.content_type,
-                                metadata.scale_factor,
-                                &mut rasterize_custom_glyph,
-                            ) {
-                                return Err(PrepareError::AtlasFull);
-                            }
-
-                            inner = system.atlas.inner_for_content_mut(image.content_type);
-                        }
-                    }
-                };
-                let atlas_min = allocation.rectangle.min;
-
-                state.queue.write_texture(
-                    TexelCopyTextureInfo {
-                        texture: &inner.texture,
-                        mip_level: 0,
-                        origin: Origin3d {
-                            x: atlas_min.x as u32,
-                            y: atlas_min.y as u32,
-                            z: 0,
-                        },
-                        aspect: TextureAspect::All,
-                    },
-                    &image.data,
-                    TexelCopyBufferLayout {
-                        offset: 0,
-                        bytes_per_row: Some(image.width as u32 * inner.num_channels() as u32),
-                        rows_per_image: None,
-                    },
-                    Extent3d {
-                        width: image.width as u32,
-                        height: image.height as u32,
-                        depth_or_array_layers: 1,
-                    },
-                );
-
-                (
-                    GpuCacheStatus::InAtlas {
-                        x: atlas_min.x as u16,
-                        y: atlas_min.y as u16,
-                        content_type: image.content_type,
-                    },
-                    Some(allocation.id),
-                    inner,
-                )
-            } else {
-                let inner = &mut system.atlas.color_atlas;
-                (GpuCacheStatus::SkipRasterization, None, inner)
-            };
-
-            inner.glyphs_in_use.insert(metadata.cache_key);
-            // Insert the glyph into the cache and return the details reference
-            inner
-                .glyph_cache
-                .get_or_insert(metadata.cache_key, || GlyphDetails {
-                    width: image.width,
-                    height: image.height,
-                    gpu_cache,
-                    atlas_id,
-                    top: image.top,
-                    left: image.left,
-                })
+    let details = if let Some(details) = system
+        .atlas
+        .mask_atlas
+        .glyph_cache
+        .get_mut(&metadata.cache_key)
+    {
+        details.last_used = mask_generation;
+        details
+    } else if let Some(details) = system
+        .atlas
+        .color_atlas
+        .glyph_cache
+        .get_mut(&metadata.cache_key)
+    {
+        details.last_used = color_generation;
+        details
+    } else {
+        let Some(image) = (get_glyph_image)(system, &mut rasterize_custom_glyph) else {
+            return Ok(None);
         };
+
+        let should_rasterize = image.width > 0 && image.height > 0;
+
+        let (gpu_cache, atlas_id, inner) = if should_rasterize {
+            let mut inner = system.atlas.inner_for_content_mut(image.content_type);
+
+            // Find a position in the packer
+            let allocation = loop {
+                match inner.try_allocate(image.width as usize, image.height as usize) {
+                    Some(a) => break a,
+                    None => {
+                        if !system.atlas.grow(
+                            state,
+                            system.font_system,
+                            system.cache,
+                            image.content_type,
+                            metadata.scale_factor,
+                            &mut rasterize_custom_glyph,
+                        ) {
+                            return Err(PrepareError::AtlasFull);
+                        }
+
+                        inner = system.atlas.inner_for_content_mut(image.content_type);
+                    }
+                }
+            };
+            let atlas_min = allocation.rectangle.min;
+
+            state.queue.write_texture(
+                TexelCopyTextureInfo {
+                    texture: &inner.texture,
+                    mip_level: 0,
+                    origin: Origin3d {
+                        x: atlas_min.x as u32,
+                        y: atlas_min.y as u32,
+                        z: 0,
+                    },
+                    aspect: TextureAspect::All,
+                },
+                &image.data,
+                TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(image.width as u32 * inner.num_channels() as u32),
+                    rows_per_image: None,
+                },
+                Extent3d {
+                    width: image.width as u32,
+                    height: image.height as u32,
+                    depth_or_array_layers: 1,
+                },
+            );
+
+            (
+                GpuCacheStatus::InAtlas {
+                    x: atlas_min.x as u16,
+                    y: atlas_min.y as u16,
+                    content_type: image.content_type,
+                },
+                Some(allocation.id),
+                inner,
+            )
+        } else {
+            let inner = &mut system.atlas.color_atlas;
+            (GpuCacheStatus::SkipRasterization, None, inner)
+        };
+
+        let generation = inner.generation;
+        // Insert the glyph into the cache and return the details reference
+        inner
+            .glyph_cache
+            .get_or_insert(metadata.cache_key, || GlyphDetails {
+                width: image.width,
+                height: image.height,
+                gpu_cache,
+                atlas_id,
+                top: image.top,
+                left: image.left,
+                last_used: generation,
+            })
+    };
 
     let mut x = metadata.x + details.left as i32;
     let mut y =

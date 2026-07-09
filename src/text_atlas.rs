@@ -5,7 +5,7 @@ use crate::{
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
 use rustc_hash::FxHasher;
-use std::{collections::HashSet, hash::BuildHasherDefault};
+use std::hash::BuildHasherDefault;
 use wgpu::{
     BindGroup, DepthStencilState, Device, Extent3d, MultisampleState, Origin3d, Queue,
     RenderPipeline, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect,
@@ -23,7 +23,9 @@ pub(crate) struct InnerAtlas {
     pub packer: BucketedAtlasAllocator,
     pub size: u32,
     pub glyph_cache: LruCache<GlyphonCacheKey, GlyphDetails, Hasher>,
-    pub glyphs_in_use: HashSet<GlyphonCacheKey, Hasher>,
+    /// Monotonic frame counter, bumped by `trim`. A glyph whose `last_used` equals this value has
+    /// been touched since the last `trim` and is considered in use for the current frame.
+    pub generation: usize,
     pub max_texture_dimension_2d: u32,
 }
 
@@ -55,7 +57,6 @@ impl InnerAtlas {
         let texture_view = texture.create_view(&TextureViewDescriptor::default());
 
         let glyph_cache = LruCache::unbounded_with_hasher(Hasher::default());
-        let glyphs_in_use = HashSet::with_hasher(Hasher::default());
 
         Self {
             kind,
@@ -64,7 +65,7 @@ impl InnerAtlas {
             packer,
             size,
             glyph_cache,
-            glyphs_in_use,
+            generation: 0,
             max_texture_dimension_2d,
         }
     }
@@ -80,22 +81,22 @@ impl InnerAtlas {
             }
 
             // Try to free least recently used allocation
-            let (mut key, mut value) = self.glyph_cache.peek_lru()?;
+            let (_, mut value) = self.glyph_cache.peek_lru()?;
 
             // Find a glyph with an actual size
             while value.atlas_id.is_none() {
                 // All sized glyphs are in use, cache is full
-                if self.glyphs_in_use.contains(key) {
+                if value.last_used == self.generation {
                     return None;
                 }
 
                 let _ = self.glyph_cache.pop_lru();
 
-                (key, value) = self.glyph_cache.peek_lru()?;
+                (_, value) = self.glyph_cache.peek_lru()?;
             }
 
             // All sized glyphs are in use, cache is full
-            if self.glyphs_in_use.contains(key) {
+            if value.last_used == self.generation {
                 return None;
             }
 
@@ -217,7 +218,9 @@ impl InnerAtlas {
     }
 
     fn trim(&mut self) {
-        self.glyphs_in_use.clear();
+        // Advance the frame counter so that glyphs touched before this point are no longer
+        // considered in use and become eligible for eviction.
+        self.generation = self.generation.wrapping_add(1);
     }
 }
 

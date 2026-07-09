@@ -49,6 +49,10 @@ pub(crate) struct GlyphDetails {
     atlas_id: Option<AllocId>,
     top: i16,
     left: i16,
+    /// The atlas `generation` in which this glyph was last touched by `prepare`. A glyph is
+    /// considered in use for the current frame (and not evictable) while this equals the atlas's
+    /// current `generation`.
+    last_used: usize,
 }
 
 #[repr(C)]

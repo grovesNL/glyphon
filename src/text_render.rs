@@ -146,14 +146,25 @@ impl TextRenderer {
         let resolution = viewport.resolution();
 
         for text_area in text_areas {
+            let x_min = text_area.bounds.left.max(0);
+            let y_min = text_area.bounds.top.max(0);
+
             let bounds = GlyphBounds {
                 x: Bounds {
-                    min: text_area.bounds.left.max(0),
-                    max: text_area.bounds.right.min(resolution.width as i32),
+                    min: x_min,
+                    max: text_area
+                        .bounds
+                        .right
+                        .min(resolution.width as i32)
+                        .max(x_min),
                 },
                 y: Bounds {
-                    min: text_area.bounds.top.max(0),
-                    max: text_area.bounds.bottom.min(resolution.height as i32),
+                    min: y_min,
+                    max: text_area
+                        .bounds
+                        .bottom
+                        .min(resolution.height as i32)
+                        .max(y_min),
                 },
             };
 

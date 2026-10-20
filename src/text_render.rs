@@ -333,6 +333,7 @@ impl TextRenderer {
 
             let (buffer, buffer_size) = create_oversized_buffer(
                 device,
+                queue,
                 Some("glyphon vertices"),
                 vertices_raw,
                 BufferUsages::VERTEX | BufferUsages::COPY_DST,
@@ -384,8 +385,11 @@ fn next_copy_buffer_size(size: u64) -> u64 {
     ((size.next_power_of_two() + align_mask) & !align_mask).max(COPY_BUFFER_ALIGNMENT)
 }
 
+// Written through the queue rather than mapped at creation: mapping an allocation that failed
+// (device lost, out of memory) returns an error, and unwrapping it panicked.
 fn create_oversized_buffer(
     device: &Device,
+    queue: &Queue,
     label: Option<&str>,
     contents: &[u8],
     usage: BufferUsages,
@@ -394,15 +398,10 @@ fn create_oversized_buffer(
     let buffer = device.create_buffer(&BufferDescriptor {
         label,
         size,
-        usage,
-        mapped_at_creation: true,
+        usage: usage | BufferUsages::COPY_DST,
+        mapped_at_creation: false,
     });
-    buffer
-        .slice(..contents.len() as u64)
-        .get_mapped_range_mut()
-        .unwrap()
-        .copy_from_slice(contents);
-    buffer.unmap();
+    queue.write_buffer(&buffer, 0, contents);
     (buffer, size)
 }
 

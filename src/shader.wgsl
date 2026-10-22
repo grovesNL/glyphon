@@ -15,6 +15,16 @@ struct VertexOutput {
     @location(2) @interpolate(flat) content_type: u32,
 };
 
+// What the fragment stage reads: the vertex output without the position. Reusing `VertexOutput`
+// as the fragment input carried `@invariant` into the fragment shader, where the GLSL backend
+// writes `invariant gl_FragCoord;`, which OpenGL ES rejects ("Invalid precise/invariant
+// declaration on non-writeable var"): the pipeline then fails to build on the GLES backend.
+struct FragmentInput {
+    @location(0) color: vec4<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) @interpolate(flat) content_type: u32,
+};
+
 struct Params {
     screen_resolution: vec2<u32>,
     _pad: vec2<u32>,
@@ -113,7 +123,7 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
 }
 
 @fragment
-fn fs_main(in_frag: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in_frag: FragmentInput) -> @location(0) vec4<f32> {
     switch in_frag.content_type {
         case 0u: {
             return textureSampleLevel(color_atlas_texture, atlas_sampler, in_frag.uv, 0.0);
